@@ -26,6 +26,8 @@ import WineFoodPairings from './pages/WineFoodPairings';
 import SalesReports from './pages/SalesReport';
 import Intelligence from './pages/Intelligence';
 import AdminPages from './pages/AdminPages';
+import ProductDetailPage from './pages/ProductDetails';
+import BlogDetailPage from './pages/BlogDetails';
 
 function App() {
   return (
@@ -49,12 +51,14 @@ function App() {
         {/* These components inject right into the <Outlet /> inside DashboardLayout */}
         <Route path="blog-categories" element={<BlogCategories />} />
         <Route path="blogs" element={<Blogs />} />
+        <Route path="blogs/:id" element={<BlogDetailPage />} />
 
         <Route path="brands" element={<Brands />} />
         <Route path="brands/:id" element={<BrandDetail />} />
 
         <Route path="categories" element={<Categories /> } />
         <Route path="products" element={<Products /> } />
+        <Route path="products/:id" element={<ProductDetailPage /> } />  {/* Optional: Product detail page if needed */}
         <Route path="inventory" element={<Inventory /> } /> 
 
         <Route path="wine-attributes" element={<WineAttributes />} />

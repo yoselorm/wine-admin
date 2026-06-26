@@ -29,7 +29,7 @@ const DashboardSidebar = ({
           </div>
           <div>
             <h1 className="font-serif font-bold tracking-wide text-sm text-zinc-100">
-              Vintner Panel
+             Wine2U
             </h1>
             <p className="text-[9px] text-[#c4945c] font-bold uppercase tracking-widest">
               Winery Portal

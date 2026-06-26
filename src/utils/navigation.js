@@ -80,8 +80,8 @@ export const groupedSidebarLinks = [
     subLinks: [
       { name: 'Sales Reports', path: '/dashboard/sales-reports', permission: 'view_analytics' },
       { name: 'Business Intelligence', path: '/dashboard/intelligence', permission: 'view_analytics' },
-      { name: 'User Directory', path: '/dashboard/user-auth', permission: 'manage_users' },
-      { name: 'Admin Staff Directory', path: '/dashboard/admin-auth', permission: 'manage_admins' },
+    //   { name: 'User Directory', path: '/dashboard/user-auth', permission: 'manage_users' },
+    //   { name: 'Admin Staff Directory', path: '/dashboard/admin-auth', permission: 'manage_admins' },
     ]
   }
 ];
