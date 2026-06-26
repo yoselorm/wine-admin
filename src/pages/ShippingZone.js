@@ -129,7 +129,7 @@ const ShippingZones = () => {
       {/* COMPACT DASHBOARD TOP HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-5">
         <div>
-          <h1 className="text-xl font-serif font-bold text-zinc-900 tracking-tight">Fulfillment Shipping Zones</h1>
+          <h1 className="text-xl font-serif font-bold text-zinc-900 tracking-tight">Shipping Zones</h1>
           <p className="text-xs text-zinc-500 mt-0.5">
             Organize fulfillment groups, establish territorial coverage nodes, and map structural description boundaries.
           </p>
@@ -194,7 +194,7 @@ const ShippingZones = () => {
                       <div className="flex items-center gap-1.5">Shipping Zone Regional Name <ArrowUpDown size={10} /></div>
                     </th>
                     <th className="py-3 px-5 w-1/2 cursor-pointer hover:bg-zinc-100 transition-colors" onClick={() => handleSort('description')}>
-                      <div className="flex items-center gap-1.5">Scope Description Narrative <ArrowUpDown size={10} /></div>
+                      <div className="flex items-center gap-1.5">Scope Description <ArrowUpDown size={10} /></div>
                     </th>
                     <th className="py-3 px-5 text-right">Actions</th>
                   </tr>
@@ -267,7 +267,7 @@ const ShippingZones = () => {
               
               {/* Body Schema: name */}
               <div className="space-y-1">
-                <label className="block font-semibold text-zinc-700">Zone Label Identifier Name *</label>
+                <label className="block font-semibold text-zinc-700">Zone Name *</label>
                 <input
                   type="text" required placeholder="e.g., North America"
                   value={formData.name}
@@ -278,7 +278,7 @@ const ShippingZones = () => {
 
               {/* Body Schema: description */}
               <div className="space-y-1">
-                <label className="block font-semibold text-zinc-700">Scope Context Narrative Description *</label>
+                <label className="block font-semibold text-zinc-700">Scope Description *</label>
                 <textarea
                   rows="4" required placeholder="e.g., Shipping zone for North American countries"
                   value={formData.description}

@@ -159,7 +159,7 @@ const FoodDishes = () => {
       {/* PAGE TITLE BAR */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-5">
         <div>
-          <h1 className="text-xl font-serif font-bold text-zinc-900 tracking-tight">Menu Food Dishes</h1>
+          <h1 className="text-xl font-serif font-bold text-zinc-900 tracking-tight">Food Dishes</h1>
           <p className="text-xs text-zinc-500 mt-0.5">
             Manage your kitchen dishes catalog, update ingredient descriptions, and specify countries of origin.
           </p>
@@ -296,7 +296,7 @@ const FoodDishes = () => {
                 <h3 className="text-sm font-bold text-zinc-900">
                   {selectedDish ? 'Edit Food Dish' : 'Add New Food Dish'}
                 </h3>
-                <p className="text-[11px] text-zinc-500 mt-0.5">Fill in the options below to configure this menu dish entry.</p>
+                <p className="text-[11px] text-zinc-500 mt-0.5">Fill in the options below to configure this dish entry.</p>
               </div>
               <button onClick={() => setIsFormModalOpen(false)} className="text-zinc-400 hover:text-zinc-600 transition-colors">
                 <X size={16} />

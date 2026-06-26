@@ -173,7 +173,7 @@ const WineRegions = () => {
       {/* VIEW PANEL HEADER CONTEXT */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-5">
         <div>
-          <h1 className="text-xl font-serif font-bold text-zinc-900 tracking-tight">Geographic Wine Regions</h1>
+          <h1 className="text-xl font-serif font-bold text-zinc-900 tracking-tight">Wine Regions</h1>
           <p className="text-xs text-zinc-500 mt-0.5">
             Organize international classification layouts, territorial nested subregions, regional maps, and visual flag identifiers.
           </p>
@@ -242,7 +242,7 @@ const WineRegions = () => {
             <div className="w-12 h-12 bg-zinc-50 border border-zinc-100 rounded-xl flex items-center justify-center mx-auto text-zinc-400 mb-3">
               <Globe size={20} />
             </div>
-            <h3 className="text-xs font-bold text-zinc-700">No matching geographic boundaries registered</h3>
+            <h3 className="text-xs font-bold text-zinc-700">No matching boundaries registered</h3>
           </div>
         ) : (
           <>
@@ -254,7 +254,7 @@ const WineRegions = () => {
                       <div className="flex items-center gap-1.5">Territory Name / Slug <ArrowUpDown size={10} /></div>
                     </th>
                     <th className="py-3 px-5 cursor-pointer hover:bg-zinc-100 transition-colors" onClick={() => handleSort('type')}>
-                      <div className="flex items-center gap-1.5">Geographic Scale Type <ArrowUpDown size={10} /></div>
+                      <div className="flex items-center gap-1.5">Scale Type <ArrowUpDown size={10} /></div>
                     </th>
                     <th className="py-3 px-5 cursor-pointer hover:bg-zinc-100 transition-colors" onClick={() => handleSort('iso_code')}>
                       <div className="flex items-center gap-1.5">ISO Mapping <ArrowUpDown size={10} /></div>
