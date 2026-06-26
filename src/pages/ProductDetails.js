@@ -13,7 +13,7 @@ const ProductDetailPage = () => {
   const dispatch = useDispatch();
 
   // Safely extract from your product slice
-  const { product, loading, error } = useSelector((state) => state.products || { product: null, loading: false, error: null });
+  const { currentProduct:product, loading, error } = useSelector((state) => state.products || { product: null, loading: false, error: null });
   const [activeImage, setActiveImage] = useState('');
 
   useEffect(() => {

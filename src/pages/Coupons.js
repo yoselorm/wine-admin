@@ -282,7 +282,7 @@ const Coupons = () => {
                         <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-[9px] font-bold rounded uppercase tracking-wider border ${
                           coupon.type === 'percent' ? 'bg-purple-50 text-purple-700 border-purple-100' : 'bg-blue-50 text-blue-700 border-blue-100'
                         }`}>
-                          {coupon.type === 'percent' ? <Percent size={10} /> : <DollarSign size={10} />}
+                          {coupon.type === 'percent' ? <Percent size={10} /> : <p className="text-[10px] font-mono font-bold">₵</p>}
                           {coupon.type}
                         </span>
                       </td>

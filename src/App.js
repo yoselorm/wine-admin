@@ -28,6 +28,8 @@ import Intelligence from './pages/Intelligence';
 import AdminPages from './pages/AdminPages';
 import ProductDetailPage from './pages/ProductDetails';
 import BlogDetailPage from './pages/BlogDetails';
+import PageDetailPage from './pages/PageDetails';
+import PageForm from './components/PageForm';
 
 function App() {
   return (
@@ -77,6 +79,8 @@ function App() {
         <Route path="intelligence" element={<Intelligence/>} />
 
         <Route path="pages" element={<AdminPages/>} />
+        <Route path="pages/:id" element={<PageDetailPage/>} />
+        <Route path="pages/create" element={<PageForm/>} />  
 
         {/* You will list your other 17 sub-routes right here following this pattern */}
       </Route>
