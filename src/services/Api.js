@@ -9,7 +9,6 @@ const api = axios.create({
   },
 });
 
-// REQUEST INTERCEPTOR: Automatically attach the token to every outgoing request
 api.interceptors.request.use(
   (config) => {
     // Parsing the token out of the centralized 'admin_data' object
@@ -29,16 +28,28 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// RESPONSE INTERCEPTOR: Handle Global Errors (Like Session Expirations)
+// api.interceptors.response.use(
+//   (response) => response,
+//   (error) => {
+//     // If the token is expired, invalid, or blacklisted on the backend
+//     if (error.response && error.response.status === 401) {
+//       localStorage.removeItem('admin_data');
+//       window.location.href = '/login'; 
+//     }
+//     return Promise.reject(error);
+//   }
+// );
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    // If the token is expired, invalid, or blacklisted on the backend
-    if (error.response && error.response.status === 401) {
+    const adminData = localStorage.getItem('admin_data');
+
+    if (error.response && error.response.status === 401 && adminData) {
       localStorage.removeItem('admin_data');
-      window.location.href = '/'; 
+      window.location.href = '/login'; 
     }
-    return Promise.reject(error);
+        return Promise.reject(error);
   }
 );
 

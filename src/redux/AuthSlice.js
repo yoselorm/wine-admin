@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../services/Api'; 
+import { api_url } from '../utils/config';
 
 const getInitialData = () => {
   const data = localStorage.getItem('admin_data');
@@ -14,8 +15,8 @@ export const loginAdmin = createAsyncThunk(
   'auth/loginAdmin',
   async (credentials, { rejectWithValue }) => {
     try {
-      const response = await api.post('/admin/login', credentials);
-      return response.data;
+      const response = await api.post(`${api_url}/admin/login`, credentials);
+      return response.data?.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || 'Login failed');
     }
@@ -27,7 +28,7 @@ export const registerAdmin = createAsyncThunk(
   'auth/registerAdmin',
   async (userData, { rejectWithValue }) => {
     try {
-      const response = await api.post('/admin/register', userData);
+      const response = await api.post(`${api_url}/admin/register`, userData);
       return response.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || 'Registration failed');
@@ -40,7 +41,7 @@ export const forgotPassword = createAsyncThunk(
   'auth/forgotPassword',
   async (email, { rejectWithValue }) => {
     try {
-      const response = await api.post('/admin/forgot-password', { email });
+      const response = await api.post(`${api_url}/admin/forgot-password`, { email });
       return response.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || 'Failed to send reset link');
@@ -53,7 +54,7 @@ export const resetPassword = createAsyncThunk(
   'auth/resetPassword',
   async (resetData, { rejectWithValue }) => {
     try {
-      const response = await api.post('/admin/reset-password', resetData);
+      const response = await api.post(`${api_url}/admin/reset-password`, resetData);
       return response.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || 'Password reset failed');
@@ -66,7 +67,7 @@ export const sendVerificationEmail = createAsyncThunk(
   'auth/sendVerificationEmail',
   async (_, { rejectWithValue }) => {
     try {
-      const response = await api.post('/admin/email/verification-notification');
+      const response = await api.post(`${api_url}/admin/email/verification-notification`);
       return response.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || 'Failed to send verification link');
@@ -79,7 +80,7 @@ export const verifyEmail = createAsyncThunk(
   'auth/verifyEmail',
   async ({ id, hash }, { rejectWithValue }) => {
     try {
-      const response = await api.get(`/admin/verify-email/${id}/${hash}`);
+      const response = await api.get(`${api_url}/admin/verify-email/${id}/${hash}`);
       return response.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || 'Email verification failed');
@@ -92,7 +93,7 @@ export const logoutAdmin = createAsyncThunk(
   'auth/logoutAdmin',
   async (_, { rejectWithValue }) => {
     try {
-      await api.post('/admin/logout');
+      await api.post(`${api_url}/admin/logout`);
       localStorage.removeItem('admin_data');
       return true;
     } catch (err) {
