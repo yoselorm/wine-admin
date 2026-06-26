@@ -8,7 +8,7 @@ import {
   deleteProduct, 
   clearProductStatus 
 } from '../redux/ProductSlice';
-import { ShoppingBag, Plus, Search, Edit2, Trash2, Loader2 } from 'lucide-react';
+import { ShoppingBag, Plus, Search, Edit2, Trash2, Loader2, Eye } from 'lucide-react';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import toast from '../components/Toast';
 import ProductFormDrawer from '../components/ProductFormDrawer';
@@ -210,7 +210,6 @@ const Products = () => {
                   {products.map((prod) => (
                     <tr
                       key={prod.id}
-                      onClick={() => navigate(`/dashboard/products/${prod.id}`)}
                       className="hover:bg-zinc-50/40 transition-colors cursor-pointer group"
                     >
                       <td className="py-4 px-5">
@@ -240,6 +239,11 @@ const Products = () => {
                         <button onClick={(e) => openEditDrawer(e, prod)}
                           className="inline-flex p-1.5 rounded-md border border-zinc-200 bg-white text-zinc-600 hover:text-zinc-900 shadow-xs">
                           <Edit2 size={13} />
+                        </button>
+                        <button                       
+                        onClick={() => navigate(`/dashboard/products/${prod.id}`)}
+                          className="inline-flex p-1.5 rounded-md border border-zinc-200 bg-white text-zinc-600 hover:text-zinc-900 shadow-xs">
+                          <Eye size={13} />
                         </button>
                         <button onClick={(e) => handleDeleteTrigger(e, prod)}
                           className="inline-flex p-1.5 rounded-md border border-red-100 bg-white text-red-600 hover:bg-red-50 shadow-xs">

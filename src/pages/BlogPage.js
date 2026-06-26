@@ -19,6 +19,7 @@ import {
   Loader2,
   Link,
   Upload,
+  Eye,
 } from "lucide-react";
 import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 import toast from "../components/Toast";
@@ -270,7 +271,7 @@ const Blogs = () => {
               <tbody className="divide-y divide-zinc-100 font-medium">
                 {posts.map((post) => (
                   <tr
-                    onClick={() => navigate(`/dashboard/blogs/${post.id}`)}
+                   
                     key={post.id}
                     className="hover:bg-zinc-50/40 transition-colors"
                   >
@@ -303,6 +304,12 @@ const Blogs = () => {
                         className="inline-flex p-1.5 rounded-md border border-zinc-200 bg-white text-zinc-600 hover:text-zinc-900"
                       >
                         <Edit2 size={13} />
+                      </button>
+                      <button
+                         onClick={() => navigate(`/dashboard/blogs/${post.id}`)}
+                        className="inline-flex p-1.5 rounded-md border border-zinc-200 bg-white text-zinc-600 hover:text-zinc-900"
+                      >
+                        <Eye size={13} />
                       </button>
                       <button
                         onClick={() => handleDeleteTrigger(post)}
