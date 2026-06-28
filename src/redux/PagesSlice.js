@@ -2,7 +2,7 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../services/Api';
 import { api_url } from '../utils/config';
 
-
+// 1. Fetch All Pages
 export const fetchPages = createAsyncThunk(
   'pages/fetchAll',
   async (params, { rejectWithValue }) => {
@@ -17,12 +17,12 @@ export const fetchPages = createAsyncThunk(
   }
 );
 
-// 2. Fetch a Specific Page by ID/Slug
-export const fetchPageDetails = createAsyncThunk(
-  'pages/fetchDetails',
-  async (pageKey, { rejectWithValue }) => {
+// 2. Fetch a Specific Page 
+export const fetchPage = createAsyncThunk( // Renamed to fetchPage
+  'pages/fetchOne',
+  async (pageIdentifier, { rejectWithValue }) => {
     try {
-      const response = await api.get(`${api_url}/v1/admin/pages/${pageKey}`);
+      const response = await api.get(`${api_url}/v1/admin/pages/${pageIdentifier}`);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -33,8 +33,6 @@ export const fetchPageDetails = createAsyncThunk(
 );
 
 // 3. Create a New Page
-// Expected request body fields from Screenshot 2026-06-26 at 12.25.48.png:
-// title, slug, content, is_published, meta_keywords, meta_title, meta_description
 export const createPage = createAsyncThunk(
   'pages/create',
   async (pageData, { rejectWithValue }) => {
@@ -52,9 +50,10 @@ export const createPage = createAsyncThunk(
 // 4. Update an Existing Page
 export const updatePage = createAsyncThunk(
   'pages/update',
-  async ({ pageKey, data }, { rejectWithValue }) => {
+  // Updated parameters to match what PageModal sends: { pageIdentifier, pageData }
+  async ({ pageIdentifier, pageData }, { rejectWithValue }) => {
     try {
-      const response = await api.put(`${api_url}/v1/admin/pages/${pageKey}`, data);
+      const response = await api.put(`${api_url}/v1/admin/pages/${pageIdentifier}`, pageData);
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -67,10 +66,11 @@ export const updatePage = createAsyncThunk(
 // 5. Delete a Page
 export const deletePage = createAsyncThunk(
   'pages/delete',
-  async (pageKey, { rejectWithValue }) => {
+  // Updated parameter name to pageIdentifier
+  async (pageIdentifier, { rejectWithValue }) => {
     try {
-      const response = await api.delete(`${api_url}/v1/admin/pages/${pageKey}`);
-      return { pageKey, ...response.data };
+      const response = await api.delete(`${api_url}/v1/admin/pages/${pageIdentifier}`);
+      return { pageIdentifier, ...response.data };
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message || 'Failed to delete the page.'
@@ -79,13 +79,13 @@ export const deletePage = createAsyncThunk(
   }
 );
 
+// Updated state keys to match UI components
 const initialState = {
-  pagesList: [],
-  currentPageDetails: null,
-  pagination: null,
+  data: [],              // Was: pagesList
+  currentPage: null,     // Was: currentPageDetails
+  meta: null,            // Was: pagination
   loading: false,
-  detailsLoading: false,
-  mutationLoading: false,
+  actionLoading: false,  // Was: mutationLoading
   error: null,
   successMessage: null,
 };
@@ -94,12 +94,12 @@ const pagesSlice = createSlice({
   name: 'pages',
   initialState,
   reducers: {
-    clearPagesStatus: (state) => {
+    clearErrors: (state) => { // Was: clearPagesStatus
       state.error = null;
       state.successMessage = null;
     },
-    clearCurrentPageDetails: (state) => {
-      state.currentPageDetails = null;
+    clearCurrentPage: (state) => { // Was: clearCurrentPageDetails
+      state.currentPage = null;
     }
   },
   extraReducers: (builder) => {
@@ -111,8 +111,8 @@ const pagesSlice = createSlice({
       })
       .addCase(fetchPages.fulfilled, (state, action) => {
         state.loading = false;
-        state.pagesList = action.payload.data || [];
-        state.pagination = action.payload.meta || null;
+        state.data = action.payload.data || [];
+        state.meta = action.payload.meta || null;
       })
       .addCase(fetchPages.rejected, (state, action) => {
         state.loading = false;
@@ -120,63 +120,66 @@ const pagesSlice = createSlice({
       })
 
       // --- Fetch Details ---
-      .addCase(fetchPageDetails.pending, (state) => {
-        state.detailsLoading = true;
+      .addCase(fetchPage.pending, (state) => {
+        state.actionLoading = true;
         state.error = null;
       })
-      .addCase(fetchPageDetails.fulfilled, (state, action) => {
-        state.detailsLoading = false;
-        state.currentPageDetails = action.payload.data || action.payload;
+      .addCase(fetchPage.fulfilled, (state, action) => {
+        state.actionLoading = false;
+        state.currentPage = action.payload.data || action.payload;
       })
-      .addCase(fetchPageDetails.rejected, (state, action) => {
-        state.detailsLoading = false;
+      .addCase(fetchPage.rejected, (state, action) => {
+        state.actionLoading = false;
         state.error = action.payload;
       })
 
       // --- Create ---
       .addCase(createPage.pending, (state) => {
-        state.mutationLoading = true;
+        state.actionLoading = true;
         state.error = null;
       })
       .addCase(createPage.fulfilled, (state, action) => {
-        state.mutationLoading = false;
+        state.actionLoading = false;
         state.successMessage = action.payload.message || 'Page created successfully!';
       })
       .addCase(createPage.rejected, (state, action) => {
-        state.mutationLoading = false;
+        state.actionLoading = false;
         state.error = action.payload;
       })
 
       // --- Update ---
       .addCase(updatePage.pending, (state) => {
-        state.mutationLoading = true;
+        state.actionLoading = true;
         state.error = null;
       })
       .addCase(updatePage.fulfilled, (state, action) => {
-        state.mutationLoading = false;
+        state.actionLoading = false;
         state.successMessage = action.payload.message || 'Page updated successfully!';
       })
       .addCase(updatePage.rejected, (state, action) => {
-        state.mutationLoading = false;
+        state.actionLoading = false;
         state.error = action.payload;
       })
 
       // --- Delete ---
       .addCase(deletePage.pending, (state) => {
-        state.mutationLoading = true;
+        state.actionLoading = true;
         state.error = null;
       })
       .addCase(deletePage.fulfilled, (state, action) => {
-        state.mutationLoading = false;
-        state.pagesList = state.pagesList.filter(page => page.id !== action.payload.pageKey && page.slug !== action.payload.pageKey);
+        state.actionLoading = false;
+        // Filters against data instead of pagesList
+        state.data = state.data.filter(
+          page => page.id !== action.payload.pageIdentifier && page.slug !== action.payload.pageIdentifier
+        );
         state.successMessage = action.payload.message || 'Page deleted successfully.';
       })
       .addCase(deletePage.rejected, (state, action) => {
-        state.mutationLoading = false;
+        state.actionLoading = false;
         state.error = action.payload;
       });
   },
 });
 
-export const { clearPagesStatus, clearCurrentPageDetails } = pagesSlice.actions;
+export const { clearErrors, clearCurrentPage } = pagesSlice.actions;
 export default pagesSlice.reducer;

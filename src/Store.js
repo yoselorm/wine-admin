@@ -39,7 +39,7 @@ const store = configureStore({
     wineFoodPairings: wineFoodPairingReducer,
     salesReports: saleReducer,
     intelligence: intelligenceReducer,
-    pages: pageReducer,
+    adminPages: pageReducer,
   },
 });
 
