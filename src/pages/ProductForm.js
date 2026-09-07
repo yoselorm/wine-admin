@@ -1,0 +1,525 @@
+import React, { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, Plus, Trash, Loader2, UploadCloud, X, Search } from "lucide-react";
+
+import {
+  fetchProductById,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  clearProductStatus,
+  clearCurrentProduct,
+} from "../redux/ProductSlice";
+import { fetchBrands } from "../redux/BrandSlice";
+import { fetchCategories } from "../redux/CategorySlice";
+import { fetchWineRegions } from "../redux/WineRegionSlice";
+import { fetchBlogs } from "../redux/BlogSlice";
+import { fetchFoodDishes } from "../redux/FoodDishSlice";
+import Card from "../components/ui/Card";
+import Button from "../components/ui/Button";
+import Switch from "../components/ui/Switch";
+import Pill from "../components/ui/Pill";
+import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
+import toast from "../components/Toast";
+
+const WINE_ATTRIBUTE_TYPES = ["tannin", "acidity", "body", "sweetness", "alcohol", "aroma", "finish"];
+
+const initialFormState = {
+  name: "",
+  sku: "",
+  slug: "",
+  description: "",
+  short_description: "",
+  price: "",
+  sale_price: "",
+  stock_quantity: "",
+  is_published: true,
+  is_featured: false,
+  brand_id: "",
+  weight: "",
+  length: "",
+  width: "",
+  height: "",
+  category_ids: [],
+  wineRegion_ids: [],
+  blog_ids: [],
+  variants: [],
+  images: [],
+  wine_attributes: [],
+  pairings: [],
+};
+
+const extractIds = (idsArray, objectsArray) => {
+  if (Array.isArray(idsArray) && idsArray.length > 0) {
+    return idsArray.map((item) => (typeof item === "object" ? item.id : item));
+  }
+  if (Array.isArray(objectsArray)) {
+    return objectsArray.map((item) => item.id);
+  }
+  return [];
+};
+
+const ProductForm = () => {
+  const { id } = useParams();
+  const isEditing = Boolean(id);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const { currentProduct, loading, mutationLoading, error, successMessage } = useSelector((s) => s.products);
+  const { brands } = useSelector((state) => state.brands || { items: [] });
+  const { categories } = useSelector((state) => state.categories || { items: [] });
+  const { regions } = useSelector((state) => state.wineRegions || { items: [] });
+  const { posts: blogs } = useSelector((state) => state.blogs || { items: [] });
+  const { foodDishes: dishes } = useSelector((state) => state.foodDishes || { items: [] });
+
+  const [formData, setFormData] = useState(initialFormState);
+  const [regionSearch, setRegionSearch] = useState("");
+  const [blogSearch, setBlogSearch] = useState("");
+  const [attrDraft, setAttrDraft] = useState({ type: "body", value: "5" });
+  const [pairingDraft, setPairingDraft] = useState({ dish_id: "", reason: "" });
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+
+  useEffect(() => {
+    dispatch(fetchBrands());
+    dispatch(fetchCategories());
+    dispatch(fetchWineRegions());
+    dispatch(fetchBlogs());
+    dispatch(fetchFoodDishes());
+    if (isEditing) dispatch(fetchProductById(id));
+    return () => dispatch(clearCurrentProduct());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  useEffect(() => {
+    if (isEditing && currentProduct) {
+      setFormData({
+        ...initialFormState,
+        ...currentProduct,
+        category_ids: extractIds(currentProduct.category_ids, currentProduct.categories),
+        wineRegion_ids: extractIds(currentProduct.wineRegion_ids, currentProduct.wine_regions || currentProduct.regions),
+        blog_ids: extractIds(currentProduct.blog_ids, currentProduct.blogs || currentProduct.posts),
+        variants: currentProduct.variants || [],
+        wine_attributes: currentProduct.wine_attributes || [],
+        pairings: currentProduct.pairings || [],
+        images: (currentProduct.images || []).map((img) => ({ ...img, is_upload: false, file: null })),
+      });
+      if (!dishes.find((d) => d.id === pairingDraft.dish_id)) {
+        setPairingDraft((p) => ({ ...p, dish_id: dishes[0]?.id || "" }));
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentProduct, isEditing]);
+
+  useEffect(() => {
+    if (!pairingDraft.dish_id && dishes?.length) {
+      setPairingDraft((p) => ({ ...p, dish_id: dishes[0].id }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dishes]);
+
+  useEffect(() => {
+    if (error) {
+      toast.error(error);
+      dispatch(clearProductStatus());
+    }
+    if (successMessage) {
+      toast.success(successMessage);
+      dispatch(clearProductStatus());
+      navigate("/dashboard/products");
+    }
+  }, [error, successMessage, dispatch, navigate]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleNameChange = (e) => {
+    const value = e.target.value;
+    setFormData((prev) => ({
+      ...prev,
+      name: value,
+      slug: value.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-"),
+    }));
+  };
+
+  const toggleSelection = (field, itemId) => {
+    setFormData((prev) => {
+      const currentList = prev[field];
+      return currentList.includes(itemId)
+        ? { ...prev, [field]: currentList.filter((x) => x !== itemId) }
+        : { ...prev, [field]: [...currentList, itemId] };
+    });
+  };
+
+  const addNestedObjectItem = (field, structureTemplate) => {
+    setFormData((prev) => ({ ...prev, [field]: [...prev[field], structureTemplate] }));
+  };
+
+  const handleNestedObjectChange = (index, field, key, value) => {
+    const updated = [...formData[field]];
+    updated[index] = { ...updated[index], [key]: value };
+    setFormData((prev) => ({ ...prev, [field]: updated }));
+  };
+
+  const removeNestedObjectItem = (index, field) => {
+    setFormData((prev) => ({ ...prev, [field]: prev[field].filter((_, i) => i !== index) }));
+  };
+
+  const handleAddAttribute = () => {
+    if (!attrDraft.type) return;
+    setFormData((prev) => ({
+      ...prev,
+      wine_attributes: [
+        ...prev.wine_attributes.filter((a) => a.attribute_type !== attrDraft.type),
+        { attribute_type: attrDraft.type, value: attrDraft.value },
+      ],
+    }));
+  };
+
+  const handleAddPairing = () => {
+    if (!pairingDraft.dish_id) return;
+    addNestedObjectItem("pairings", { ...pairingDraft });
+  };
+
+  const handleImageFiles = (e) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach((file) => {
+      addNestedObjectItem("images", { image_url: file.name, file, is_upload: true, alt_text: "", is_featured: formData.images.length === 0 });
+    });
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (isEditing) {
+      dispatch(updateProduct({ id, productData: formData }));
+    } else {
+      dispatch(createProduct(formData));
+    }
+  };
+
+  const handleDelete = async () => {
+    await dispatch(deleteProduct(id));
+    setDeleteModalOpen(false);
+    navigate("/dashboard/products");
+  };
+
+  const filteredRegions = regions?.filter((r) => r.name.toLowerCase().includes(regionSearch.toLowerCase())) || [];
+  const filteredBlogs = blogs?.filter((b) => b.title.toLowerCase().includes(blogSearch.toLowerCase())) || [];
+
+  if (isEditing && loading && !currentProduct) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-3">
+        <Loader2 className="animate-spin text-gray-400" size={24} />
+        <span className="text-sm text-gray-400">Loading product...</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto">
+      <button
+        onClick={() => navigate("/dashboard/products")}
+        className="flex items-center gap-1.5 text-sm font-medium text-violet-600 hover:text-violet-700 mb-3"
+      >
+        <ArrowLeft size={14} /> Back to Products
+      </button>
+
+      <div className="flex items-center justify-between mb-6 gap-4 flex-wrap">
+        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">
+          {isEditing ? "Edit Product" : "New Product"}
+        </h1>
+        <div className="flex items-center gap-3">
+          {isEditing && (
+            <Button type="button" appearance="danger-outline" onClick={() => setDeleteModalOpen(true)}>Delete</Button>
+          )}
+          <Button type="button" appearance="secondary" onClick={() => navigate("/dashboard/products")}>Cancel</Button>
+          <Button type="submit" form="product-form" disabled={mutationLoading}>
+            {mutationLoading && <Loader2 size={14} className="animate-spin mr-1.5" />}
+            Save Product
+          </Button>
+        </div>
+      </div>
+
+      <form id="product-form" onSubmit={handleSubmit} className="space-y-6 pb-10">
+        <Card title="Details">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-5 text-sm">
+            <div>
+              <label className="block font-medium text-gray-700 mb-1.5">Product Name <span className="text-red-500">*</span></label>
+              <input type="text" required value={formData.name} onChange={handleNameChange}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+            </div>
+            <div>
+              <label className="block font-medium text-gray-700 mb-1.5">Slug <span className="text-red-500">*</span></label>
+              <input type="text" required value={formData.slug} onChange={(e) => setFormData((p) => ({ ...p, slug: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+              <p className="text-xs text-gray-400 mt-1">Auto-generated from name · used in the product URL</p>
+            </div>
+            <div>
+              <label className="block font-medium text-gray-700 mb-1.5">SKU <span className="text-red-500">*</span></label>
+              <input type="text" required name="sku" value={formData.sku} onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+              <p className="text-xs text-gray-400 mt-1">Must be unique across products</p>
+            </div>
+            <div>
+              <label className="block font-medium text-gray-700 mb-1.5">Brand <span className="text-red-500">*</span></label>
+              <select required name="brand_id" value={formData.brand_id} onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-200 bg-white rounded-md focus:outline-none focus:border-violet-500">
+                <option value="">Select a brand...</option>
+                {brands?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+              </select>
+            </div>
+            <div className="col-span-2">
+              <label className="block font-medium text-gray-700 mb-1.5">Short Description</label>
+              <textarea rows="2" name="short_description" value={formData.short_description || ""} onChange={handleChange}
+                placeholder="One or two lines shown on product cards"
+                className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none focus:outline-none focus:border-violet-500" />
+              <p className="text-xs text-gray-400 mt-1">Shown on product cards</p>
+            </div>
+            <div className="col-span-2">
+              <label className="block font-medium text-gray-700 mb-1.5">Description</label>
+              <textarea rows="4" name="description" value={formData.description || ""} onChange={handleChange}
+                placeholder="Tasting notes, story of the estate, vintage conditions..."
+                className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none focus:outline-none focus:border-violet-500" />
+            </div>
+          </div>
+        </Card>
+
+        <Card title="Organisation">
+          <div className="space-y-5 text-sm">
+            <div>
+              <label className="block font-medium text-gray-700 mb-2">Categories <span className="text-red-500">*</span></label>
+              <div className="flex flex-wrap gap-2">
+                {categories?.map((c) => (
+                  <Pill key={c.id} active={formData.category_ids.includes(c.id)} onClick={() => toggleSelection("category_ids", c.id)}>
+                    {c.name}
+                  </Pill>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="font-medium text-gray-700">Wine Regions</label>
+                <div className="relative">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input type="text" placeholder="Search regions..." value={regionSearch} onChange={(e) => setRegionSearch(e.target.value)}
+                    className="pl-7 pr-2 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500 w-40" />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {filteredRegions.map((r) => (
+                  <Pill key={r.id} active={formData.wineRegion_ids.includes(r.id)} onClick={() => toggleSelection("wineRegion_ids", r.id)}>
+                    {r.name}
+                  </Pill>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="font-medium text-gray-700">Linked Blog Posts</label>
+                <div className="relative">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input type="text" placeholder="Search posts..." value={blogSearch} onChange={(e) => setBlogSearch(e.target.value)}
+                    className="pl-7 pr-2 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500 w-40" />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {filteredBlogs.map((b) => (
+                  <Pill key={b.id} active={formData.blog_ids.includes(b.id)} onClick={() => toggleSelection("blog_ids", b.id)}>
+                    {b.title}
+                  </Pill>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Card>
+
+        <Card title="Pricing & Stock">
+          <div className="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <label className="block font-medium text-gray-700 mb-1.5">Price <span className="text-red-500">*</span></label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">₵</span>
+                <input type="number" required value={formData.price}
+                  onChange={(e) => setFormData((p) => ({ ...p, price: e.target.value }))}
+                  className="w-full pl-7 pr-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+              </div>
+            </div>
+            <div>
+              <label className="block font-medium text-gray-700 mb-1.5">Sale Price</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">₵</span>
+                <input type="number" value={formData.sale_price}
+                  onChange={(e) => setFormData((p) => ({ ...p, sale_price: e.target.value }))}
+                  className="w-full pl-7 pr-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+              </div>
+              <p className="text-xs text-gray-400 mt-1">Leave empty for no sale</p>
+            </div>
+            <div>
+              <label className="block font-medium text-gray-700 mb-1.5">Stock Quantity <span className="text-red-500">*</span></label>
+              <input type="number" required value={formData.stock_quantity}
+                onChange={(e) => setFormData((p) => ({ ...p, stock_quantity: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+            </div>
+          </div>
+        </Card>
+
+        <Card title="Shipping">
+          <div className="grid grid-cols-4 gap-4 text-sm">
+            <div>
+              <label className="block text-gray-700 mb-1.5 font-medium">Weight (kg)</label>
+              <input type="number" value={formData.weight}
+                onChange={(e) => setFormData((p) => ({ ...p, weight: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+            </div>
+            <div>
+              <label className="block text-gray-700 mb-1.5 font-medium">Length (cm)</label>
+              <input type="number" value={formData.length}
+                onChange={(e) => setFormData((p) => ({ ...p, length: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+            </div>
+            <div>
+              <label className="block text-gray-700 mb-1.5 font-medium">Width (cm)</label>
+              <input type="number" value={formData.width}
+                onChange={(e) => setFormData((p) => ({ ...p, width: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+            </div>
+            <div>
+              <label className="block text-gray-700 mb-1.5 font-medium">Height (cm)</label>
+              <input type="number" value={formData.height}
+                onChange={(e) => setFormData((p) => ({ ...p, height: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 mt-2">Used for delivery rates</p>
+        </Card>
+
+        <Card title="Images">
+          <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-gray-200 rounded-md py-10 cursor-pointer hover:border-violet-300 hover:bg-violet-50/30 transition-colors">
+            <UploadCloud size={20} className="text-gray-400 mb-1" />
+            <span className="text-sm font-semibold text-violet-600">Click to upload images</span>
+            <span className="text-xs text-gray-400">JPG, PNG or WebP · max 5MB each · first image becomes primary</span>
+            <input type="file" accept="image/*" multiple onChange={handleImageFiles} className="hidden" />
+          </label>
+          {formData.images?.length > 0 && (
+            <div className="flex flex-wrap gap-3 mt-4">
+              {formData.images.map((img, index) => (
+                <div key={index} className="relative w-20 h-20 rounded-md border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center text-xs text-gray-400">
+                  {img.is_upload ? img.file?.name?.slice(0, 10) : <img src={img.image_url} alt="" className="w-full h-full object-cover" />}
+                  <button type="button" onClick={() => removeNestedObjectItem(index, "images")}
+                    className="absolute top-0.5 right-0.5 bg-white/90 rounded-full p-0.5 text-red-500 hover:bg-white">
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <Card title="Wine Attributes">
+          <p className="text-xs text-gray-400 mb-3">Scored 0–10 · one score per attribute; adding again replaces it.</p>
+          <div className="flex items-center gap-2 mb-3">
+            <select value={attrDraft.type} onChange={(e) => setAttrDraft((d) => ({ ...d, type: e.target.value }))}
+              className="px-3 py-2 border border-gray-200 rounded-md bg-white text-sm focus:outline-none focus:border-violet-500">
+              {WINE_ATTRIBUTE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <input type="number" min="0" max="10" placeholder="0–10" value={attrDraft.value}
+              onChange={(e) => setAttrDraft((d) => ({ ...d, value: e.target.value }))}
+              className="w-24 px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-violet-500" />
+            <Button type="button" size="sm" appearance="secondary" onClick={handleAddAttribute}>Add</Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {formData.wine_attributes?.map((attr, index) => (
+              <span key={index} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 text-sm text-gray-700">
+                {attr.attribute_type} {attr.value}
+                <button type="button" onClick={() => removeNestedObjectItem(index, "wine_attributes")} className="text-gray-400 hover:text-red-500">
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+          </div>
+        </Card>
+
+        <Card title="Food Pairings">
+          <div className="flex items-center gap-2">
+            <select value={pairingDraft.dish_id} onChange={(e) => setPairingDraft((d) => ({ ...d, dish_id: e.target.value }))}
+              className="px-3 py-2 border border-gray-200 rounded-md bg-white text-sm focus:outline-none focus:border-violet-500 min-w-[160px]">
+              {dishes?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+            <input type="text" placeholder="Why it works (optional)" value={pairingDraft.reason}
+              onChange={(e) => setPairingDraft((d) => ({ ...d, reason: e.target.value }))}
+              className="flex-1 px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-violet-500" />
+            <Button type="button" size="sm" appearance="secondary" onClick={handleAddPairing}>Add</Button>
+          </div>
+          <div className="space-y-2 mt-3">
+            {formData.pairings?.map((pair, index) => (
+              <div key={index} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-md text-sm">
+                <div>
+                  <span className="font-semibold text-gray-800">{dishes?.find((d) => d.id === pair.dish_id)?.name || pair.dish_id}</span>
+                  {pair.reason && <span className="text-gray-500"> — {pair.reason}</span>}
+                </div>
+                <button type="button" onClick={() => removeNestedObjectItem(index, "pairings")} className="text-gray-400 hover:text-red-500">
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        <Card title="Variants">
+          <p className="text-xs text-gray-400 mb-3">Optional — e.g. single bottle vs case of 6. Each variant needs its own SKU, price and stock.</p>
+          <div className="space-y-2">
+            {formData.variants.map((v, index) => (
+              <div key={index} className="grid grid-cols-5 gap-2 items-center bg-gray-50 p-2 rounded-md border border-gray-200 relative pr-8 text-sm">
+                <input type="text" placeholder="SKU" value={v.sku}
+                  onChange={(e) => handleNestedObjectChange(index, "variants", "sku", e.target.value)}
+                  className="w-full px-2 py-1.5 border border-gray-200 rounded bg-white font-mono" />
+                <input type="number" placeholder="Price" value={v.price}
+                  onChange={(e) => handleNestedObjectChange(index, "variants", "price", e.target.value)}
+                  className="w-full px-2 py-1.5 border border-gray-200 rounded bg-white" />
+                <input type="number" placeholder="Sale" value={v.sale_price}
+                  onChange={(e) => handleNestedObjectChange(index, "variants", "sale_price", e.target.value)}
+                  className="w-full px-2 py-1.5 border border-gray-200 rounded bg-white" />
+                <input type="number" placeholder="Stock" value={v.stock_quantity}
+                  onChange={(e) => handleNestedObjectChange(index, "variants", "stock_quantity", e.target.value)}
+                  className="w-full px-2 py-1.5 border border-gray-200 rounded bg-white" />
+                <label className="flex items-center justify-center gap-1 cursor-pointer">
+                  <input type="checkbox" checked={v.is_active}
+                    onChange={(e) => handleNestedObjectChange(index, "variants", "is_active", e.target.checked)}
+                    className="rounded text-violet-600 focus:ring-0" /> Active
+                </label>
+                <button type="button" onClick={() => removeNestedObjectItem(index, "variants")}
+                  className="absolute right-1 text-red-500 p-1 hover:bg-red-50 rounded">
+                  <Trash size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+          <Button type="button" size="sm" appearance="secondary" icon={Plus} className="mt-3"
+            onClick={() => addNestedObjectItem("variants", { sku: "", price: "", sale_price: "", stock_quantity: "", is_active: true })}>
+            Add Variant
+          </Button>
+        </Card>
+
+        <Card title="Visibility">
+          <div className="flex items-center gap-8">
+            <Switch checked={formData.is_published} onChange={(val) => setFormData((p) => ({ ...p, is_published: val }))} label="Published" italic />
+            <Switch checked={formData.is_featured} onChange={(val) => setFormData((p) => ({ ...p, is_featured: val }))} label="Featured" italic />
+          </div>
+        </Card>
+      </form>
+
+      <ConfirmDeleteModal
+        isOpen={deleteModalOpen}
+        isDeleting={mutationLoading}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirm={handleDelete}
+        title="Delete Product"
+        message={`Are you sure you want to remove "${formData.name}" from the catalog? This will remove all associated variants and history.`}
+      />
+    </div>
+  );
+};
+
+export default ProductForm;

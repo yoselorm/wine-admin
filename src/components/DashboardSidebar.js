@@ -1,13 +1,11 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { ChevronDown, LogOut } from "lucide-react";
+import { LogOut, Wine as WineLogo } from "lucide-react";
 import { groupedSidebarLinks } from "../utils/navigation";
 
 const DashboardSidebar = ({
   roles,
   permissions,
-  openDropdowns,
-  onToggleDropdown,
   onLogout,
   loading,
   isMobile = false,
@@ -20,134 +18,81 @@ const DashboardSidebar = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950 text-zinc-100">
-      {/* Sidebar Header / Brand Identity */}
-      <div className="h-16 flex items-center justify-between px-6 border-b border-zinc-900/60 gap-2.5 bg-zinc-950/40 backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-800 flex items-center justify-center text-base">
-            🍷
+    <div className="flex flex-col h-full bg-white border-r border-gray-200">
+      {/* Brand */}
+      <div className="h-16 flex items-center justify-between px-5 border-b border-gray-100 gap-2.5">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-violet-500 flex items-center justify-center text-white">
+            <WineLogo size={16} />
           </div>
           <div>
-            <h1 className="font-serif font-bold tracking-wide text-sm text-zinc-100">
-             Wine2U
-            </h1>
-            <p className="text-[9px] text-[#c4945c] font-bold uppercase tracking-widest">
-              Winery Portal
-            </p>
+            <h1 className="font-bold text-sm text-gray-900 leading-tight">Wine2U</h1>
+            <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Admin</p>
           </div>
         </div>
         {isMobile && onCloseMobile && (
           <button
             onClick={onCloseMobile}
-            className="text-zinc-500 hover:text-zinc-200 p-1 md:hidden transition-colors"
+            className="text-gray-400 hover:text-gray-700 p-1 md:hidden transition-colors"
           >
             ✕
           </button>
         )}
       </div>
 
-      {/* Dynamic Nav Structure Grid */}
-      <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto custom-scrollbar">
+      {/* Nav groups */}
+      <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
         {groupedSidebarLinks.map((group) => {
-          const IconComponent = group.icon;
-
-          // 1. Single Top Level Links
-          if (group.type === "single") {
-            if (!hasAccess(group.permission)) return null;
-            return (
-              <NavLink
-                key={group.name}
-                to={group.path}
-                end
-                onClick={() => isMobile && onCloseMobile()}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-2.5 text-xs font-semibold rounded-lg transition-all ${
-                    isActive
-                      ? "bg-zinc-900 text-white font-bold border border-zinc-800/80"
-                      : "text-zinc-400 hover:bg-zinc-900/40 hover:text-zinc-200"
-                  }`
-                }
-              >
-                {/* React Router passes an object with isActive right here! */}
-                {({ isActive }) => (
-                  <>
-                    <IconComponent
-                      size={16}
-                      className={
-                        isActive ? "text-[#c4945c]" : "text-zinc-500 opacity-80"
-                      }
-                    />
-                    <span className={isActive ? "text-[#c4945c]" : ""}>
-                      {group.name}
-                    </span>
-                  </>
-                )}
-              </NavLink>
-            );
-          }
-          // 2. Multi-Level Dropdowns
-          const authorizedSubLinks = group.subLinks.filter((sub) =>
-            hasAccess(sub.permission),
-          );
-          if (authorizedSubLinks.length === 0) return null;
-
-          const isDropdownOpen = !!openDropdowns[group.category];
+          const authorizedItems = group.items.filter((item) => hasAccess(item.permission));
+          if (authorizedItems.length === 0) return null;
 
           return (
-            <div key={group.category} className="space-y-1">
-              <button
-                type="button"
-                onClick={() => onToggleDropdown(group.category)}
-                className="w-full flex items-center justify-between px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-zinc-500 hover:text-zinc-300 transition-colors focus:outline-none"
-              >
-                <div className="flex items-center gap-3">
-                  <IconComponent size={14} className="opacity-70" />
-                  <span>{group.category}</span>
-                </div>
-                <ChevronDown
-                  size={12}
-                  className={`transition-transform duration-200 text-zinc-500 ${isDropdownOpen ? "rotate-180" : ""}`}
-                />
-              </button>
-
-              {isDropdownOpen && (
-                <div className="pl-4 ml-2 border-l border-zinc-900 space-y-1 mt-1 transition-all duration-200 animate-fade-in">
-                  {authorizedSubLinks.map((sub) => (
+            <div key={group.category}>
+              <p className="px-3 mb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                {group.category}
+              </p>
+              <div className="space-y-0.5">
+                {authorizedItems.map((item) => {
+                  const Icon = item.icon;
+                  return (
                     <NavLink
-                      key={sub.name}
-                      to={sub.path}
-                      onClick={() => isMobile && onCloseMobile()}
+                      key={item.path}
+                      to={item.path}
+                      end={item.end}
+                      onClick={() => isMobile && onCloseMobile && onCloseMobile()}
                       className={({ isActive }) =>
-                        `block px-4 py-2 text-xs font-medium rounded-md transition-all border-l-2 ${
+                        `flex items-center gap-2.5 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                           isActive
-                            ? "text-white font-semibold border-[#c4945c] bg-zinc-900/60"
-                            : "text-zinc-400 border-transparent hover:text-zinc-200 hover:bg-zinc-900/20"
+                            ? "bg-violet-50 text-violet-700"
+                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                         }`
                       }
                     >
-                      {sub.name}
+                      {({ isActive }) => (
+                        <>
+                          <Icon size={17} className={isActive ? "text-violet-600" : "text-gray-400"} />
+                          <span>{item.name}</span>
+                        </>
+                      )}
                     </NavLink>
-                  ))}
-                </div>
-              )}
+                  );
+                })}
+              </div>
             </div>
           );
         })}
       </nav>
 
-      {/* Sidebar Exit Footer Control */}
-      <div className="p-4 border-t border-zinc-900/60 bg-zinc-950/20">
+      {/* Footer */}
+      <div className="p-3 border-t border-gray-100">
         <button
           type="button"
           onClick={onLogout}
           disabled={loading}
-          className="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-semibold text-zinc-400 hover:text-white hover:bg-red-950/10 rounded-lg transition-colors group disabled:opacity-50 focus:outline-none"
+          className="w-full flex items-center gap-2.5 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-red-50 hover:text-red-600 rounded-md transition-colors disabled:opacity-50 focus:outline-none"
         >
-          <LogOut
-            size={15}
-            className="text-zinc-500 group-hover:text-zinc-300 transition-colors"
-          />
-          <span>{loading ? "Logging out..." : "Sign Out Session"}</span>
+          <LogOut size={17} className="text-gray-400" />
+          <span>{loading ? "Logging out..." : "Log out"}</span>
         </button>
       </div>
     </div>

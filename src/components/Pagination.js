@@ -53,11 +53,11 @@ const Pagination = ({ meta, onPageChange }) => {
   const pages = getPageNumbers();
 
   return (
-    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-zinc-500">
+    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-gray-500">
       {/* Left Metadata Readout */}
       <div>
-        Showing <span className="font-semibold text-zinc-700">{from}-{to}</span> of{' '}
-        <span className="font-semibold text-zinc-700">{totalItems}</span> items
+        Showing <span className="font-semibold text-gray-700">{from}-{to}</span> of{' '}
+        <span className="font-semibold text-gray-700">{totalItems}</span> items
       </div>
 
       {/* Control Buttons Group */}
@@ -67,7 +67,7 @@ const Pagination = ({ meta, onPageChange }) => {
           type="button"
           disabled={currentPage === 1}
           onClick={() => onPageChange(currentPage - 1)}
-          className="inline-flex items-center justify-center p-1.5 rounded-lg border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 disabled:hover:bg-white transition-colors"
+          className="inline-flex items-center justify-center p-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white transition-colors"
         >
           <ChevronLeft size={14} />
         </button>
@@ -76,7 +76,7 @@ const Pagination = ({ meta, onPageChange }) => {
         {pages.map((page, index) => {
           if (page === '...') {
             return (
-              <span key={`ellipsis-${index}`} className="px-2.5 py-1.5 text-zinc-400 select-none">
+              <span key={`ellipsis-${index}`} className="px-2.5 py-1.5 text-gray-400 select-none">
                 ...
               </span>
             );
@@ -91,8 +91,8 @@ const Pagination = ({ meta, onPageChange }) => {
               onClick={() => onPageChange(page)}
               className={`inline-flex items-center justify-center min-w-[32px] h-8 px-2.5 rounded-lg text-xs font-medium border transition-all ${
                 isActive
-                  ? 'bg-zinc-950 border-zinc-950 text-white shadow-xs'
-                  : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50'
+                  ? 'bg-gray-950 border-gray-950 text-white shadow-xs'
+                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
               }`}
             >
               {page}
@@ -105,7 +105,7 @@ const Pagination = ({ meta, onPageChange }) => {
           type="button"
           disabled={currentPage === lastPage}
           onClick={() => onPageChange(currentPage + 1)}
-          className="inline-flex items-center justify-center p-1.5 rounded-lg border border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 disabled:opacity-40 disabled:hover:bg-white transition-colors"
+          className="inline-flex items-center justify-center p-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white transition-colors"
         >
           <ChevronRight size={14} />
         </button>

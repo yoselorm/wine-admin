@@ -8,10 +8,10 @@ export const fetchIntelligenceAlerts = createAsyncThunk(
   'intelligence/fetchAlerts',
   async (params, { rejectWithValue }) => {
     try {
-      const response = await api.get(`${api_url}/v1/admin/intelligence/alerts`, { 
-        params: { limit: 10, ...params } 
+      const response = await api.get(`${api_url}/v1/admin/intelligence/alerts`, {
+        params: { limit: 10, ...params }
       });
-      return response.data.data; // Structure matches: { data: [...], meta: {...}, message: "" }
+      return response.data; // Structure matches: { data: [...], meta: {...}, message: "" }
     } catch (error) {
       return rejectWithValue(
         error.response?.data?.message || 'Failed to retrieve active system intelligence alerts.'

@@ -8,22 +8,14 @@ import DashboardHeader from './DashboardHeader';
 import toast from './Toast';
 
 const DashboardLayout = () => {
-  const [openDropdowns, setOpenDropdowns] = useState({});
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  
+
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
   const { admin, loading } = useSelector((state) => state.auth);
   const roles = admin?.admin_roles || [];
   const permissions = admin?.admin_permissions || [];
-
-  const handleToggleDropdown = (categoryName) => {
-    setOpenDropdowns((prev) => ({
-      ...prev,
-      [categoryName]: !prev[categoryName],
-    }));
-  };
 
   const handleLogout = async () => {
     try {
@@ -36,31 +28,32 @@ const DashboardLayout = () => {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex text-zinc-900 font-sans antialiased selection:bg-[#c4945c] selection:text-white">
-      
+    <div className="h-screen bg-gray-100 flex text-gray-900 font-sans antialiased overflow-hidden">
+
       {/* 1. DESKTOP SIDEBAR FIXED DOCK */}
-      <aside className="hidden md:block w-64 fixed inset-y-0 left-0 z-20 shadow-xl">
-        <DashboardSidebar 
+      <aside className="hidden md:block w-60 flex-shrink-0 h-screen">
+        <DashboardSidebar
           roles={roles}
           permissions={permissions}
-          openDropdowns={openDropdowns}
-          onToggleDropdown={handleToggleDropdown}
           onLogout={handleLogout}
           loading={loading}
         />
       </aside>
 
       {/* 2. CORE WORKSPACE ENVIRONMENT */}
-      <div className="flex-1 md:pl-64 flex flex-col min-h-screen">
-        <DashboardHeader 
+      <div className="flex-1 flex flex-col h-screen min-w-0">
+        <DashboardHeader
           admin={admin}
           roles={roles}
           onMenuOpen={() => setIsMobileOpen(true)}
+          onLogout={handleLogout}
         />
 
         {/* Dynamic Nested Route Rendering Console */}
-        <main className="flex-1 p-6 max-w-7xl w-full mx-auto animate-fade-in">
-          <Outlet />
+        <main className="flex-1 min-h-0 overflow-y-auto">
+          <div className="max-w-content w-full mx-auto p-8 animate-fade-in">
+            <Outlet />
+          </div>
         </main>
       </div>
 
@@ -69,17 +62,15 @@ const DashboardLayout = () => {
         <div className="fixed inset-0 z-40 md:hidden flex">
           {/* Backdrop Blur Mask */}
           <div
-            className="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-gray-950/40 backdrop-blur-sm transition-opacity"
             onClick={() => setIsMobileOpen(false)}
           />
 
           {/* Sidebar Drawer Element */}
-          <div className="relative w-64 max-w-xs h-full shadow-2xl z-50 animate-slide-in">
-            <DashboardSidebar 
+          <div className="relative w-60 max-w-xs h-full shadow-2xl z-50 animate-slide-in">
+            <DashboardSidebar
               roles={roles}
               permissions={permissions}
-              openDropdowns={openDropdowns}
-              onToggleDropdown={handleToggleDropdown}
               onLogout={handleLogout}
               loading={loading}
               isMobile={true}

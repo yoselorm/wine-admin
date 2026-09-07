@@ -16,18 +16,18 @@ const ConfirmDeleteModal = ({
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       {/* Backdrop Mask */}
       <div 
-        className="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm transition-opacity animate-fade-in"
+        className="fixed inset-0 bg-gray-950/40 backdrop-blur-sm transition-opacity animate-fade-in"
         onClick={isDeleting ? null : onClose} // Block clicking background while loading API call
       />
 
       {/* Modal Card Structure */}
-      <div className="bg-white border border-zinc-100 rounded-xl shadow-2xl max-w-sm w-full relative z-50 p-6 overflow-hidden animate-slide-in flex flex-col gap-4">
+      <div className="bg-white border border-gray-100 rounded-xl shadow-2xl max-w-sm w-full relative z-50 p-6 overflow-hidden animate-slide-in flex flex-col gap-4">
         
         {/* Upper Close Button */}
         <button 
           onClick={onClose} 
           disabled={isDeleting}
-          className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600 focus:outline-none transition-colors disabled:opacity-30"
+          className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 focus:outline-none transition-colors disabled:opacity-30"
         >
           <X size={16} />
         </button>
@@ -38,18 +38,18 @@ const ConfirmDeleteModal = ({
             <AlertTriangle size={18} />
           </div>
           <div className="space-y-1">
-            <h3 className="text-sm font-serif font-bold text-zinc-900 tracking-tight">{title}</h3>
-            <p className="text-xs text-zinc-500 font-light leading-relaxed">{message}</p>
+            <h3 className="text-sm font-bold text-gray-900 tracking-tight">{title}</h3>
+            <p className="text-xs text-gray-500 font-light leading-relaxed">{message}</p>
           </div>
         </div>
 
         {/* Form Controls Footer Buttons */}
-        <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-zinc-100 mt-2">
+        <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-gray-100 mt-2">
           <button
             type="button"
             onClick={onClose}
             disabled={isDeleting}
-            className="px-3.5 py-1.5 border border-zinc-200 hover:bg-zinc-50 text-zinc-700 text-xs font-semibold rounded-lg transition-all focus:outline-none disabled:opacity-50"
+            className="px-3.5 py-1.5 border border-gray-200 hover:bg-gray-50 text-gray-700 text-xs font-semibold rounded-lg transition-all focus:outline-none disabled:opacity-50"
           >
             Cancel
           </button>

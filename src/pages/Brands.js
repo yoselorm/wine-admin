@@ -1,240 +1,173 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
-import { createPortal } from 'react-dom';
 import { fetchBrands, createBrand, updateBrand, deleteBrand, clearBrandStatus } from '../redux/BrandSlice';
-import { Shield, Plus, Search, Edit2, Trash2, X, Loader2, Link, Upload, Eye } from 'lucide-react';
-import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import { Loader2, Plus, Upload } from 'lucide-react';
 import toast from '../components/Toast';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 
-const debounce = (func, delay) => {
-  let timeoutId;
-  return (...args) => {
-    if (timeoutId) clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => func(...args), delay);
-  };
-};
+const emptyDetail = { name: '', slug: '', description: '', logo_url: '' };
 
 const Brands = () => {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
   const { brands, loading, mutationLoading, error, message } = useSelector((state) => state.brands);
 
-  const [searchInputValue, setSearchInputValue] = useState('');
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [editingBrand, setEditingBrand] = useState(null);
-  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState(null);
-
-  const [logoSource, setLogoSource] = useState('url');
-  const [formData, setFormData] = useState({ name: '', slug: '', description: '', logo_url: '' });
+  const [selectedId, setSelectedId] = useState(null);
+  const [detail, setDetail] = useState(emptyDetail);
+  const [newName, setNewName] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => {
     dispatch(fetchBrands());
   }, [dispatch]);
 
   useEffect(() => {
+    if (!selectedId && brands?.length) setSelectedId(brands[0].id);
+  }, [brands, selectedId]);
+
+  useEffect(() => {
+    const brand = brands?.find((b) => b.id === selectedId);
+    if (brand) {
+      setDetail({ name: brand.name || '', slug: brand.slug || '', description: brand.description || '', logo_url: brand.logo_url || '' });
+    }
+  }, [selectedId, brands]);
+
+  useEffect(() => {
     if (error) { toast.error(error); dispatch(clearBrandStatus()); }
-    if (message) { toast.success(message); dispatch(clearBrandStatus()); closeDrawer(); }
+    if (message) { toast.success(message); dispatch(clearBrandStatus()); }
   }, [error, message, dispatch]);
 
-  const debouncedFetch = useCallback(
-    debounce((str) => dispatch(fetchBrands({ search: str })), 400),
-    [dispatch]
-  );
-
-  const handleSearchChange = (e) => {
-    setSearchInputValue(e.target.value);
-    debouncedFetch(e.target.value);
+  const handleAddNew = () => {
+    if (!newName.trim()) return;
+    const slug = newName.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
+    dispatch(createBrand({ name: newName, slug, description: '', logo_url: '' }));
+    setNewName('');
   };
 
   const handleNameChange = (e) => {
     const val = e.target.value;
-    setFormData((prev) => ({
-      ...prev,
-      name: val,
-      slug: val.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-'),
-    }));
+    setDetail((prev) => ({ ...prev, name: val, slug: val.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-') }));
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  const handleFileChange = (e) => {
-    const { files } = e.target;
-    if (files && files[0]) {
-      setFormData((prev) => ({ ...prev, logo_url: files[0] }));
-    }
-  };
-
-  const openCreateDrawer = () => {
-    setEditingBrand(null);
-    setLogoSource('url');
-    setFormData({ name: '', slug: '', description: '', logo_url: '' });
-    setIsDrawerOpen(true);
-  };
-
-  const openEditDrawer = (e, brand) => {
-    e.stopPropagation(); // Avoid triggering full-row card view navigations
-    setEditingBrand(brand);
-    setLogoSource(typeof brand.logo_url === 'string' && brand.logo_url ? 'url' : 'upload');
-    setFormData({
-      name: brand.name || '',
-      slug: brand.slug || '',
-      description: brand.description || '',
-      logo_url: brand.logo_url || '',
-    });
-    setIsDrawerOpen(true);
-  };
-
-  const closeDrawer = () => { setIsDrawerOpen(false); setEditingBrand(null); };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (editingBrand) {
-      dispatch(updateBrand({ id: editingBrand.id, brandData: formData }));
-    } else {
-      dispatch(createBrand(formData));
-    }
-  };
-
-  const handleDeleteTrigger = (e, brand) => {
-    e.stopPropagation();
-    setItemToDelete(brand);
-    setDeleteModalOpen(true);
+  const handleSave = () => {
+    if (selectedId) dispatch(updateBrand({ id: selectedId, brandData: detail }));
   };
 
   const executeDelete = async () => {
-    if (itemToDelete) {
-      await dispatch(deleteBrand(itemToDelete.id));
-      setDeleteModalOpen(false);
-      setItemToDelete(null);
+    if (deleteTarget) {
+      await dispatch(deleteBrand(deleteTarget.id));
+      if (selectedId === deleteTarget.id) setSelectedId(null);
+      setDeleteTarget(null);
     }
   };
 
+  const selected = brands?.find((b) => b.id === selectedId);
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-zinc-200 pb-5">
-        <div>
-          <h1 className="text-xl font-serif font-bold text-zinc-900 tracking-tight">Brands</h1>
-          <p className="text-xs text-zinc-500 mt-0.5">Configure root vineyard brands, brand logos, and descriptive meta portfolios.</p>
-        </div>
-        <button onClick={openCreateDrawer} className="flex items-center justify-center gap-2 px-4 py-2 bg-zinc-950 text-white hover:bg-zinc-800 text-xs font-semibold rounded-lg shadow-sm">
-          <Plus size={14} /> Add Brand
-        </button>
+    <div className="space-y-2">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Brands</h1>
+        <p className="text-sm text-gray-500 mt-1">Wine producers and estates. Brands in use by a product cannot be deleted.</p>
       </div>
 
-      <div className="bg-white p-4 rounded-xl border border-zinc-200/80 shadow-sm flex items-center gap-3">
-        <Search size={16} className="text-zinc-400" />
-        <input type="text" placeholder="Search brands..." value={searchInputValue} onChange={handleSearchChange} className="w-full text-xs bg-transparent border-none text-zinc-800 focus:outline-none" />
-        {loading && <Loader2 className="animate-spin text-zinc-400" size={14} />}
-      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 mt-4">
+        {/* LIST PANEL */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-card flex flex-col max-h-[calc(100vh-220px)]">
+          <div className="px-5 py-4 border-b border-gray-100 flex-shrink-0">
+            <h3 className="text-sm font-bold text-gray-900">All Brands</h3>
+          </div>
+          <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+            {loading && brands.length === 0 ? (
+              <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" size={20} /></div>
+            ) : (
+              brands.map((b) => (
+                <div
+                  key={b.id}
+                  onClick={() => setSelectedId(b.id)}
+                  className={`flex items-center justify-between px-5 py-3.5 cursor-pointer transition-colors ${
+                    selectedId === b.id ? 'bg-violet-50' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <p className={`text-sm font-semibold truncate ${selectedId === b.id ? 'text-violet-700' : 'text-gray-900'}`}>{b.name}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">/{b.slug}</p>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0 pl-2">
+                    <span className="text-xs text-gray-400 whitespace-nowrap">{b.product_count ?? 0} products</span>
+                    <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(b); }} className="text-gray-300 hover:text-red-500 text-lg leading-none">×</button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <div className="p-4 border-t border-gray-100 flex-shrink-0 space-y-2">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">New Brand</p>
+            <input
+              type="text" value={newName} onChange={(e) => setNewName(e.target.value)}
+              placeholder="Name, e.g. Meerlust"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500"
+            />
+            <button onClick={handleAddNew} disabled={mutationLoading}
+              className="w-full py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
+              {mutationLoading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add Brand
+            </button>
+          </div>
+        </div>
 
-      {/* CARDS LIST PLATFORM */}
-      {loading && brands.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-3">
-          <Loader2 className="animate-spin text-[#c4945c]" size={24} />
-          <span className="text-xs text-zinc-400 font-medium">Syncing wine brand ledgers...</span>
-        </div>
-      ) : brands.length === 0 ? (
-        <div className="text-center py-16 bg-white border border-zinc-200 rounded-xl">
-          <div className="w-12 h-12 bg-zinc-50 border border-zinc-100 rounded-xl flex items-center justify-center mx-auto text-zinc-400 mb-3"><Shield size={20} /></div>
-          <h3 className="text-xs font-bold text-zinc-700">No brands indexed</h3>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {brands.map((brand) => (
-            <div 
-              key={brand.id}
-              onClick={() => navigate(`/dashboard/brands/${brand.id}`)}
-              className="bg-white border border-zinc-200 rounded-xl p-5 shadow-xs hover:shadow-md transition-all duration-200 cursor-pointer flex flex-col justify-between group relative"
-            >
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="w-12 h-12 rounded-lg bg-zinc-50 border border-zinc-100 overflow-hidden flex items-center justify-center p-1 flex-shrink-0">
-                    {brand.logo_url && typeof brand.logo_url === 'string' ? (
-                      <img src={brand.logo_url} alt={brand.name} className="w-full h-full object-contain" />
-                    ) : (
-                      <span className="text-xs font-bold text-zinc-400">{brand.name?.[0]}</span>
-                    )}
-                  </div>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={(e) => openEditDrawer(e, brand)} className="p-1.5 rounded-md border border-zinc-200 bg-white text-zinc-600 hover:text-zinc-900 shadow-xs"><Edit2 size={12} /></button>
-                    <button onClick={(e) => handleDeleteTrigger(e, brand)} className="p-1.5 rounded-md border border-red-100 bg-white text-red-600 hover:bg-red-50 shadow-xs"><Trash2 size={12} /></button>
-                  </div>
+        {/* DETAIL PANEL */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-card max-h-[calc(100vh-220px)] overflow-y-auto">
+          {!selected ? (
+            <div className="flex items-center justify-center h-full py-20 text-sm text-gray-400">Select a brand to view details.</div>
+          ) : (
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-5">Brand Details</h3>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-5 text-sm">
+                <div>
+                  <label className="block font-medium text-gray-700 mb-1.5">Name <span className="text-red-500">*</span></label>
+                  <input type="text" value={detail.name} onChange={handleNameChange}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
                 </div>
                 <div>
-                  <h3 className="font-serif font-bold text-zinc-900 text-sm group-hover:text-[#c4945c] transition-colors">{brand.name}</h3>
-                  <p className="text-[10px] font-mono text-zinc-400 mt-0.5">{brand.slug}</p>
-                  <p className="text-xs font-light text-zinc-500 mt-2 line-clamp-2">{brand.description || 'No descriptive overview defined.'}</p>
+                  <label className="block font-medium text-gray-700 mb-1.5">Slug <span className="text-red-500">*</span></label>
+                  <input type="text" value={detail.slug} onChange={(e) => setDetail((p) => ({ ...p, slug: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+                  <p className="text-xs text-gray-400 mt-1">Must be unique · used in URLs</p>
                 </div>
-              </div>
-              <div className="flex items-center justify-end text-[10px] text-zinc-400 font-semibold gap-1 pt-4 mt-4 border-t border-zinc-50">
-                <span>View Brand</span> <Eye size={10} />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* DRAWER PORTAL */}
-      {isDrawerOpen && createPortal(
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm" onClick={closeDrawer} />
-          <div className="relative w-full max-w-md h-screen bg-white shadow-2xl flex flex-col justify-between z-50 animate-slide-in">
-            <div className="p-5 border-b border-zinc-100 flex items-center justify-between bg-zinc-50">
-              <div>
-                <h3 className="font-serif font-bold text-zinc-900 text-sm">{editingBrand ? 'Modify Brand ' : 'Register Brand'}</h3>
-              </div>
-              <button onClick={closeDrawer} className="text-zinc-400 hover:text-zinc-700"><X size={16} /></button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-5 space-y-4 text-xs pb-24 custom-scrollbar">
-              <div>
-                <label className="block font-semibold text-zinc-700 mb-1">Brand Name *</label>
-                <input type="text" required value={formData.name} onChange={handleNameChange} className="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:border-zinc-900" />
-              </div>
-              <div>
-                <label className="block font-semibold text-zinc-400 mb-1">Brand URL Route Slug</label>
-                <input type="text" readOnly value={formData.slug} className="w-full px-3 py-2 border border-zinc-100 bg-zinc-50 font-mono text-[11px] text-zinc-500 rounded-lg" />
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="font-semibold text-zinc-700">Brand Logo Asset</label>
-                  <div className="flex gap-1 bg-zinc-100 p-0.5 rounded-md border border-zinc-200">
-                    <button type="button" onClick={() => setLogoSource('url')} className={`px-2 py-0.5 rounded text-[9px] font-bold flex items-center gap-1 ${logoSource === 'url' ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-500'}`}><Link size={10}/>URL</button>
-                    <button type="button" onClick={() => setLogoSource('upload')} className={`px-2 py-0.5 rounded text-[9px] font-bold flex items-center gap-1 ${logoSource === 'upload' ? 'bg-white text-zinc-900 shadow-xs' : 'text-zinc-500'}`}><Upload size={10}/>Upload</button>
+                <div className="col-span-2">
+                  <label className="block font-medium text-gray-700 mb-1.5">Description</label>
+                  <textarea rows="4" value={detail.description} onChange={(e) => setDetail((p) => ({ ...p, description: e.target.value }))}
+                    placeholder="The estate's story, house style, signature wines..."
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none focus:outline-none focus:border-violet-500" />
+                </div>
+                <div>
+                  <label className="block font-medium text-gray-700 mb-1.5">Logo</label>
+                  <div className="flex items-center gap-3">
+                    <label className="w-14 h-14 border-2 border-dashed border-gray-200 rounded-md flex items-center justify-center text-gray-300 cursor-pointer hover:border-violet-300 flex-shrink-0">
+                      <Plus size={18} />
+                      <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && setDetail((p) => ({ ...p, logo_url: e.target.files[0] }))} />
+                    </label>
+                    <span className="text-sm text-violet-600 font-medium flex items-center gap-1"><Upload size={13} /> Upload logo · JPG, PNG, WebP</span>
                   </div>
                 </div>
-                {logoSource === 'url' ? (
-                  <input type="url" name="logo_url" value={typeof formData.logo_url === 'string' ? formData.logo_url : ''} onChange={handleInputChange} className="w-full px-3 py-2 border border-zinc-200 rounded-lg font-mono text-[11px]" placeholder="https://example.com/logo.png" />
-                ) : (
-                  <input type="file" name="logo_url" accept="image/*" onChange={handleFileChange} className="w-full px-3 py-1.5 border border-zinc-200 rounded-lg file:mr-3 file:py-1 file:px-2 file:text-[10px] file:font-bold file:bg-zinc-100 file:text-zinc-700" />
-                )}
               </div>
-
-              <div>
-                <label className="block font-semibold text-zinc-700 mb-1">Description</label>
-                <textarea name="description" rows="4" value={formData.description} onChange={handleInputChange} className="w-full px-3 py-2 border border-zinc-200 rounded-lg resize-none" placeholder="Vineyard history, regional parameters, characteristics..." />
+              <div className="flex justify-end mt-6">
+                <button onClick={handleSave} disabled={mutationLoading}
+                  className="px-5 py-2 bg-gray-900 text-white text-sm font-semibold rounded-md hover:bg-gray-800 disabled:opacity-50 flex items-center gap-2">
+                  {mutationLoading && <Loader2 size={14} className="animate-spin" />} Save Changes
+                </button>
               </div>
-            </form>
-
-            <div className="p-4 border-t border-zinc-100 flex items-center justify-end gap-3 bg-white flex-shrink-0">
-              <button type="button" onClick={closeDrawer} className="px-4 py-2 border border-zinc-200 text-zinc-700 rounded-lg font-semibold">Cancel</button>
-              <button type="submit" disabled={mutationLoading} onClick={handleSubmit} className="flex items-center justify-center gap-2 px-5 py-2 bg-zinc-950 text-white rounded-lg font-semibold disabled:opacity-50">
-                {mutationLoading && <Loader2 size={12} className="animate-spin" />}
-                {editingBrand ? 'Update Brand' : 'Submit Brand'}
-              </button>
             </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          )}
+        </div>
+      </div>
 
-      <ConfirmDeleteModal isOpen={deleteModalOpen} isDeleting={mutationLoading} onClose={() => setDeleteModalOpen(false)} onConfirm={executeDelete} title="Delete Brand" message={`Are you entirely sure you want to delete "${itemToDelete?.name}"? Deleting a root brand identity node will completely un-link nested storefront metrics.`} />
+      <ConfirmDeleteModal
+        isOpen={!!deleteTarget}
+        isDeleting={mutationLoading}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={executeDelete}
+        title="Delete Brand"
+        message={`Are you sure you want to remove "${deleteTarget?.name}"?`}
+      />
     </div>
   );
 };

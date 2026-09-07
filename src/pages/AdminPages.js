@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Edit, Trash2, Eye, LayoutTemplate, MoreVertical } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, LayoutTemplate } from 'lucide-react';
 
 import { fetchPages, deletePage } from '../redux/PagesSlice';
-import PageModal from '../components/PageModal';
-import ConfirmDeleteModal from '../components/ConfirmDeleteModal'; 
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import Card from '../components/ui/Card';
+import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
 
 const AdminPages = () => {
   const dispatch = useDispatch();
@@ -13,17 +15,13 @@ const AdminPages = () => {
 
   const { data: pages, loading, actionLoading } = useSelector((state) => state.adminPages);
 
-  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedPage, setSelectedPage] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
 
-  // Initial Fetch Only
   useEffect(() => {
     dispatch(fetchPages());
   }, [dispatch]);
 
-  // Handlers
   const handleDeleteConfirm = async () => {
     await dispatch(deletePage(selectedPage.id)).unwrap();
     setIsDeleteModalOpen(false);
@@ -31,50 +29,55 @@ const AdminPages = () => {
   };
 
   return (
-    <div className="p-4 sm:p-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">Content Pages</h1>
-          <p className="text-zinc-500 text-sm">Manage your static website content.</p>
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Pages</h1>
+          <p className="text-sm text-gray-500 mt-0.5">Manage your static website content.</p>
         </div>
-        <button 
-          onClick={() => { setSelectedPage(null); setIsFormModalOpen(true); }}
-          className="flex items-center gap-2 bg-zinc-950 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-zinc-800"
-        >
-          <Plus size={16} /> New Page
-        </button>
+        <Button icon={Plus} onClick={() => navigate('/dashboard/pages/new')}>New Page</Button>
       </div>
 
-      {/* Table / List */}
-      <div className="bg-white rounded-xl border border-zinc-200 shadow-sm overflow-hidden">
+      <Card padded={false}>
         {loading ? (
-   <div className="min-h-screen bg-zinc-50 flex items-center justify-center">
-         <div className="w-8 h-8 border-4 border-zinc-900 border-t-transparent rounded-full animate-spin" />
-      </div>        ) : (
+          <div className="flex items-center justify-center py-20">
+            <div className="w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : pages.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="w-12 h-12 bg-gray-50 border border-gray-100 rounded-xl flex items-center justify-center mx-auto text-gray-400 mb-3">
+              <LayoutTemplate size={20} />
+            </div>
+            <h3 className="text-sm font-bold text-gray-700">No pages yet</h3>
+          </div>
+        ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-zinc-50 text-zinc-600 font-semibold border-b border-zinc-200">
+              <thead className="bg-gray-50 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
                 <tr>
-                  <th className="p-4">Title</th>
-                  <th className="p-4 hidden sm:table-cell">Slug</th>
-                  <th className="p-4 text-right">Actions</th>
+                  <th className="py-3 px-5">Title</th>
+                  <th className="py-3 px-5 hidden sm:table-cell">Slug</th>
+                  <th className="py-3 px-5">Status</th>
+                  <th className="py-3 px-5 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-100">
+              <tbody className="divide-y divide-gray-100">
                 {pages.map((page) => (
-                  <tr key={page.id} className="hover:bg-zinc-50 transition-colors">
-                    <td className="p-4 font-medium">{page.title}</td>
-                    <td className="p-4 hidden sm:table-cell font-mono text-zinc-500">/{page.slug}</td>
-                    <td className="p-4 text-right flex justify-end gap-2">
-                      <button onClick={() => navigate(`/dashboard/pages/${page.id}`)} className="p-1.5 hover:bg-zinc-100 rounded">
-                        <Eye size={16} />
+                  <tr key={page.id} onClick={() => navigate(`/dashboard/pages/${page.id}/edit`)} className="hover:bg-gray-50/60 transition-colors cursor-pointer">
+                    <td className="py-3.5 px-5 font-semibold text-gray-900">{page.title}</td>
+                    <td className="py-3.5 px-5 hidden sm:table-cell font-mono text-gray-500">/{page.slug}</td>
+                    <td className="py-3.5 px-5">
+                      <Badge tone={page.is_published ? 'green' : 'neutral'}>{page.is_published ? 'Published' : 'Draft'}</Badge>
+                    </td>
+                    <td className="py-3.5 px-5 text-right space-x-1.5" onClick={(e) => e.stopPropagation()}>
+                      <button onClick={() => navigate(`/dashboard/pages/${page.id}`)} className="inline-flex p-1.5 rounded-md border border-gray-200 bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-50">
+                        <Eye size={13} />
                       </button>
-                      <button onClick={() => { setSelectedPage(page); setIsFormModalOpen(true); }} className="p-1.5 hover:bg-zinc-100 rounded">
-                        <Edit size={16} />
+                      <button onClick={() => navigate(`/dashboard/pages/${page.id}/edit`)} className="inline-flex p-1.5 rounded-md border border-gray-200 bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-50">
+                        <Edit size={13} />
                       </button>
-                      <button onClick={() => { setSelectedPage(page); setIsDeleteModalOpen(true); }} className="p-1.5 text-red-600 hover:bg-red-50 rounded">
-                        <Trash2 size={16} />
+                      <button onClick={() => { setSelectedPage(page); setIsDeleteModalOpen(true); }} className="inline-flex p-1.5 rounded-md border border-red-100 bg-white text-red-600 hover:bg-red-50">
+                        <Trash2 size={13} />
                       </button>
                     </td>
                   </tr>
@@ -83,22 +86,15 @@ const AdminPages = () => {
             </table>
           </div>
         )}
-      </div>
+      </Card>
 
-      {/* Modals */}
-      <PageModal 
-        isOpen={isFormModalOpen} 
-        onClose={() => setIsFormModalOpen(false)} 
-        pageData={selectedPage} 
-      />
-
-      <ConfirmDeleteModal 
+      <ConfirmDeleteModal
         isOpen={isDeleteModalOpen}
         isDeleting={actionLoading}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleDeleteConfirm}
         title="Delete Page"
-        message={`Permanently delete "${selectedPage?.title}"? This cannot be undone.`}
+        message={`Are you sure you want to delete "${selectedPage?.title}"?`}
       />
     </div>
   );

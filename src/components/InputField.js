@@ -9,7 +9,7 @@ const InputField = ({ label, type = 'text', name, value, onChange, placeholder, 
 
   return (
     <div className="w-full mb-4">
-      <label className="block text-xs font-bold text-emerald-950 uppercase tracking-wider mb-1.5">
+      <label className="block text-xs font-bold text-green-950 uppercase tracking-wider mb-1.5">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       
@@ -21,10 +21,10 @@ const InputField = ({ label, type = 'text', name, value, onChange, placeholder, 
           onChange={onChange}
           placeholder={placeholder}
           required={required}
-          className={`w-full pl-4 pr-12 py-3 bg-white border text-zinc-900 placeholder-zinc-400 rounded-lg focus:outline-none focus:ring-2 transition-all duration-200 ${
+          className={`w-full pl-4 pr-12 py-3 bg-white border text-gray-900 placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 transition-all duration-200 ${
             error 
               ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' 
-              : 'border-zinc-200 focus:ring-emerald-800/10 focus:border-emerald-800'
+              : 'border-gray-200 focus:ring-green-800/10 focus:border-green-800'
           }`}
         />
 
@@ -33,7 +33,7 @@ const InputField = ({ label, type = 'text', name, value, onChange, placeholder, 
           <button
             type="button"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600 text-xs font-semibold px-2 py-1 select-none transition-colors"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-semibold px-2 py-1 select-none transition-colors"
           >
             {showPassword ? 'HIDE' : 'SHOW'}
           </button>

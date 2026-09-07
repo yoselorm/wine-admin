@@ -1,213 +1,214 @@
 import React from 'react';
 import { useSelector } from 'react-redux';
-import { 
-  DollarSign, 
-  ShoppingBag, 
-  Wine, 
-  TrendingUp, 
-  ArrowUpRight, 
-  Plus, 
-  FileText, 
-  Percent 
-} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import {
+  Wallet,
+  ShoppingBag,
+  MessageCircle,
+  TrendingUp,
+  TrendingDown,
+  ArrowUpRight,
+  AlertTriangle,
+} from 'lucide-react';
+import Card from '../components/ui/Card';
+import Badge from '../components/ui/Badge';
+import Button from '../components/ui/Button';
 
-const DashboardOverview = () => {
+// NOTE: Dashboard aggregate/analytics endpoints are not yet available from the API.
+// This screen is built with placeholder data and can be wired to real endpoints later.
+const kpis = [
+  { label: 'Revenue (30 days)', value: '₵24,580.00', delta: '+12.5%', tone: 'up', sub: 'vs. previous 30 days', icon: Wallet },
+  { label: 'Orders', value: '312', delta: '+8.2%', tone: 'up', sub: '42 pending fulfillment', icon: ShoppingBag },
+  { label: 'Wallet top-ups', value: '₵6,120.00', delta: '-3.1%', tone: 'down', sub: 'vs. previous 30 days', icon: Wallet },
+  { label: 'Sommelier chats', value: '186', delta: '+21.4%', tone: 'up', sub: 'new conversations', icon: MessageCircle },
+];
+
+const pipeline = [
+  { label: 'Pending', count: 18, tone: 'yellow' },
+  { label: 'Shipped', count: 24, tone: 'sky' },
+  { label: 'Completed', count: 246, tone: 'green' },
+  { label: 'Cancelled', count: 9, tone: 'red' },
+];
+const pipelineTotal = pipeline.reduce((sum, p) => sum + p.count, 0);
+
+const lowStock = [
+  { name: 'Château Margaux 2015', sku: 'CM-2015-750', stock: 3 },
+  { name: 'Dom Pérignon Vintage', sku: 'DP-VIN-750', stock: 5 },
+  { name: 'Barolo Riserva 2016', sku: 'BR-2016-750', stock: 7 },
+];
+
+const alerts = [
+  { severity: 'High', tone: 'red', title: 'GHS/USD volatility spike', summary: 'Currency swing may affect import cost margins this week.' },
+  { severity: 'Medium', tone: 'yellow', title: 'Bulk wine index rising', summary: 'Sourcing costs trending up across red varietals.' },
+  { severity: 'Low', tone: 'sky', title: 'Sparkling demand trend', summary: 'Seasonal uptick expected in sparkling wine orders.' },
+];
+
+const recentOrders = [
+  { id: 'ORD-9482', customer: 'Amara Mensah', total: '₵650.00', status: 'pending' },
+  { id: 'ORD-9481', customer: 'Kwame Asante', total: '₵320.00', status: 'shipped' },
+  { id: 'ORD-9480', customer: 'Elena Rostova', total: '₵890.00', status: 'completed' },
+  { id: 'ORD-9479', customer: 'John Doe', total: '₵1,200.00', status: 'completed' },
+  { id: 'ORD-9478', customer: 'Nana Yaw', total: '₵210.00', status: 'cancelled' },
+];
+
+const statusTone = { pending: 'yellow', shipped: 'sky', completed: 'green', cancelled: 'red' };
+
+const DashboardPage = () => {
   const navigate = useNavigate();
   const { admin } = useSelector((state) => state.auth);
 
-  // Mock metric data for layout visualization
-  const metrics = [
-    {
-      title: 'Total Revenue',
-      value: '$24,580.00',
-      change: '+12.5% vs last month',
-      isPositive: true,
-      icon: DollarSign,
-    },
-    {
-      title: 'Active Orders',
-      value: '42 Pending',
-      change: '8 awaiting fulfillment',
-      isPositive: true,
-      icon: ShoppingBag,
-    },
-    {
-      title: 'Wine SKU Inventory',
-      value: '1,284 Bottles',
-      change: '14 low stock alerts',
-      isPositive: false,
-      icon: Wine,
-    },
-    {
-      title: 'Conversion Rate',
-      value: '3.24%',
-      change: '+0.4% this week',
-      isPositive: true,
-      icon: TrendingUp,
-    },
-  ];
-
-  // Mock data representing recent orders queue
-  const recentOrders = [
-    { id: 'ORD-9482', customer: 'Amara Mensah', bottle: 'Château Margaux 2015', total: '$650.00', status: 'Processing' },
-    { id: 'ORD-9481', customer: 'Kwame Asante', bottle: 'Barolo Riserva 2016', total: '$320.00', status: 'Shipped' },
-    { id: 'ORD-9480', customer: 'Elena Rostova', bottle: 'Dom Pérignon Vintage', total: '$890.00', status: 'Delivered' },
-    { id: 'ORD-9479', customer: 'John Doe', bottle: 'Penfolds Grange Shiraz', total: '$1,200.00', status: 'Pending Payment' },
-  ];
-
   return (
-    <div className="space-y-8 animate-fade-in">
-      
-      {/* 1. WELCOME BANNER */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-zinc-200 pb-5">
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-serif font-bold text-zinc-900 tracking-tight">
-            Vintner Overview
-          </h1>
-          <p className="text-sm text-zinc-500 mt-0.5">
-            Good day, <span className="font-semibold text-zinc-700">{admin?.first_name || 'Admin'}</span>. Here is what is happening across your cellar portal today.
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Good day, <span className="font-semibold text-gray-700">{admin?.first_name || 'Admin'}</span>. Here&apos;s what&apos;s happening across your store today.
           </p>
         </div>
-
-        {/* Quick Action Buttons */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate('/dashboard/products')}
-            className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white hover:bg-zinc-800 text-xs font-semibold rounded-lg shadow-sm transition-colors"
-          >
-            <Plus size={14} />
-            Add New Wine
-          </button>
-        </div>
+        <Button onClick={() => navigate('/dashboard/products')}>Add Product</Button>
       </div>
 
-      {/* 2. STATS KPI GRID */}
+      {/* KPI Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {metrics.map((stat, idx) => {
-          const Icon = stat.icon;
+        {kpis.map((kpi) => {
+          const Icon = kpi.icon;
+          const TrendIcon = kpi.tone === 'up' ? TrendingUp : TrendingDown;
           return (
-            <div key={idx} className="bg-white border border-zinc-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+            <Card key={kpi.label} className="p-5">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">
-                  {stat.title}
-                </span>
-                <div 
-                  style={{ backgroundColor: '#2c4236' }} 
-                  className="p-2 rounded-lg text-white"
-                >
+                <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{kpi.label}</span>
+                <div className="p-2 rounded-md bg-violet-50 text-violet-600">
                   <Icon size={16} />
                 </div>
               </div>
-              
               <div className="mt-4">
-                <h3 className="text-2xl font-serif font-bold text-zinc-900">{stat.value}</h3>
-                <p className={`text-xs font-medium mt-1 ${stat.isPositive ? 'text-emerald-700' : 'text-amber-700'}`}>
-                  {stat.change}
-                </p>
+                <h3 className="text-2xl font-bold text-gray-900">{kpi.value}</h3>
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <span className={`inline-flex items-center gap-0.5 text-xs font-semibold ${kpi.tone === 'up' ? 'text-green-700' : 'text-red-600'}`}>
+                    <TrendIcon size={13} /> {kpi.delta}
+                  </span>
+                  <span className="text-xs text-gray-400">{kpi.sub}</span>
+                </div>
               </div>
-            </div>
+            </Card>
           );
         })}
       </div>
 
-      {/* 3. MAIN CONTENTS WORKSPACE SPLIT */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* LEFT COLUMN: Recent Orders Table (Takes up 2 spans) */}
-        <div className="lg:col-span-2 bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden flex flex-col justify-between">
-          <div>
-            <div className="p-5 border-b border-zinc-100 flex items-center justify-between">
-              <h3 className="font-serif font-bold text-zinc-900 tracking-tight text-base">
-                Recent Orders Queue
-              </h3>
-              <button 
-                onClick={() => navigate('/dashboard/orders')}
-                className="text-xs font-bold text-[#c4945c] hover:text-[#b0824b] flex items-center gap-1 transition-colors"
-              >
-                View Queue <ArrowUpRight size={14} />
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-zinc-600">
-                <thead className="bg-zinc-50 text-[10px] font-bold text-zinc-400 uppercase tracking-wider border-b border-zinc-100">
-                  <tr>
-                    <th className="py-3 px-5">ID</th>
-                    <th className="py-3 px-5">Customer</th>
-                    <th className="py-3 px-5">Allocation</th>
-                    <th className="py-3 px-5">Total</th>
-                    <th className="py-3 px-5">Status</th>
+        {/* Recent orders */}
+        <Card
+          className="lg:col-span-2"
+          padded={false}
+          title="Recent Orders"
+          action={
+            <button
+              onClick={() => navigate('/dashboard/orders')}
+              className="text-xs font-bold text-violet-600 hover:text-violet-700 flex items-center gap-1 transition-colors"
+            >
+              View all <ArrowUpRight size={14} />
+            </button>
+          }
+        >
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-gray-50 text-[11px] font-bold text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                <tr>
+                  <th className="py-3 px-5">Order</th>
+                  <th className="py-3 px-5">Customer</th>
+                  <th className="py-3 px-5">Total</th>
+                  <th className="py-3 px-5">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {recentOrders.map((order) => (
+                  <tr key={order.id} className="hover:bg-gray-50/60 transition-colors">
+                    <td className="py-3.5 px-5 font-mono text-xs font-bold text-gray-900">{order.id}</td>
+                    <td className="py-3.5 px-5 font-medium text-gray-700">{order.customer}</td>
+                    <td className="py-3.5 px-5 font-semibold text-gray-900">{order.total}</td>
+                    <td className="py-3.5 px-5">
+                      <Badge tone={statusTone[order.status]}>{order.status}</Badge>
+                    </td>
                   </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-100">
-                  {recentOrders.map((order) => (
-                    <tr key={order.id} className="hover:bg-zinc-50/50 transition-colors">
-                      <td className="py-3.5 px-5 font-mono text-xs text-zinc-900 font-bold">{order.id}</td>
-                      <td className="py-3.5 px-5 font-medium text-zinc-800">{order.customer}</td>
-                      <td className="py-3.5 px-5 text-zinc-500 font-light truncate max-w-[160px]">{order.bottle}</td>
-                      <td className="py-3.5 px-5 text-zinc-900 font-semibold">{order.total}</td>
-                      <td className="py-3.5 px-5">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide border ${
-                          order.status === 'Delivered' || order.status === 'Shipped'
-                            ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                            : 'bg-amber-50 border-amber-200 text-amber-800'
-                        }`}>
-                          {order.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
+        </Card>
 
-        {/* RIGHT COLUMN: Quick Admin Console Hub */}
-        <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-5 space-y-4">
-          <h3 className="font-serif font-bold text-zinc-900 tracking-tight text-base pb-2 border-b border-zinc-100">
-            Console Shortcuts
-          </h3>
-          
-          <div className="grid grid-cols-1 gap-2.5">
-            <button
-              onClick={() => navigate('/dashboard/coupons')}
-              className="flex items-center justify-between p-3 rounded-lg border border-zinc-100 hover:border-[#c4945c]/30 hover:bg-zinc-50 text-left transition-all group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-50 text-[#c4945c] rounded-md">
-                  <Percent size={16} />
+        {/* Order pipeline */}
+        <Card title="Order Pipeline">
+          <div className="space-y-4">
+            {pipeline.map((p) => (
+              <div key={p.label}>
+                <div className="flex items-center justify-between text-xs mb-1.5">
+                  <span className="font-medium text-gray-600">{p.label}</span>
+                  <span className="font-bold text-gray-900">{p.count}</span>
                 </div>
-                <div>
-                  <h4 className="text-xs font-semibold text-zinc-800">Create Promotion Campaign</h4>
-                  <p className="text-[10px] text-zinc-400">Launch a coupon markdown sequence</p>
+                <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${
+                      p.tone === 'green' ? 'bg-green-500' : p.tone === 'red' ? 'bg-red-500' : p.tone === 'yellow' ? 'bg-yellow-500' : 'bg-sky-500'
+                    }`}
+                    style={{ width: `${Math.round((p.count / pipelineTotal) * 100)}%` }}
+                  />
                 </div>
               </div>
-              <ArrowUpRight size={14} className="text-zinc-300 group-hover:text-[#c4945c] transition-colors" />
-            </button>
+            ))}
+          </div>
+        </Card>
+      </div>
 
-            <button
-              onClick={() => navigate('/dashboard/blogs')}
-              className="flex items-center justify-between p-3 rounded-lg border border-zinc-100 hover:border-[#c4945c]/30 hover:bg-zinc-50 text-left transition-all group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-emerald-50 text-[#2c4236] rounded-md">
-                  <FileText size={16} />
-                </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Low stock */}
+        <Card title="Low Stock" action={<Badge tone="red" size="sm">{lowStock.length} alerts</Badge>}>
+          <div className="space-y-3">
+            {lowStock.map((item) => (
+              <div key={item.sku} className="flex items-center justify-between py-1">
                 <div>
-                  <h4 className="text-xs font-semibold text-zinc-800">Draft Editorial Post</h4>
-                  <p className="text-[10px] text-zinc-400">Publish to the brand winery blog</p>
+                  <p className="text-sm font-semibold text-gray-800">{item.name}</p>
+                  <p className="text-xs text-gray-400 font-mono">{item.sku}</p>
+                </div>
+                <Badge tone="yellow" size="lg">{item.stock} left</Badge>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Intelligence feed */}
+        <Card
+          title="Intelligence Feed"
+          action={
+            <button
+              onClick={() => navigate('/dashboard/intelligence')}
+              className="text-xs font-bold text-violet-600 hover:text-violet-700 flex items-center gap-1 transition-colors"
+            >
+              View all <ArrowUpRight size={14} />
+            </button>
+          }
+        >
+          <div className="space-y-3">
+            {alerts.map((alert) => (
+              <div key={alert.title} className="flex items-start gap-3 p-3 rounded-lg border border-gray-100 bg-gray-50/50">
+                <div className={`p-1.5 rounded-md ${alert.tone === 'red' ? 'bg-red-50 text-red-600' : alert.tone === 'yellow' ? 'bg-yellow-50 text-yellow-700' : 'bg-sky-50 text-sky-600'}`}>
+                  <AlertTriangle size={14} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-gray-800 truncate">{alert.title}</p>
+                    <Badge tone={alert.tone} size="sm">{alert.severity}</Badge>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">{alert.summary}</p>
                 </div>
               </div>
-              <ArrowUpRight size={14} className="text-zinc-300 group-hover:text-[#c4945c] transition-colors" />
-            </button>
+            ))}
           </div>
-        </div>
-
+        </Card>
       </div>
     </div>
   );
 };
 
-export default DashboardOverview;
+export default DashboardPage;
