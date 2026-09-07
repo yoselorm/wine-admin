@@ -5,6 +5,9 @@ import App from './App';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 import store from './Store';
+import { getInitialTheme, applyTheme } from './utils/theme';
+
+applyTheme(getInitialTheme());
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

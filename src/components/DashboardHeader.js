@@ -1,11 +1,20 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, ChevronDown, LogOut, Menu, User } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Menu, Moon, Sun, User } from 'lucide-react';
+import { getInitialTheme, applyTheme, persistTheme } from '../utils/theme';
 
 const DashboardHeader = ({ admin, roles, onMenuOpen, onLogout }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [theme, setTheme] = useState(getInitialTheme);
   const menuRef = useRef(null);
   const navigate = useNavigate();
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    applyTheme(next);
+    persistTheme(next);
+  };
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -30,6 +39,15 @@ const DashboardHeader = ({ admin, roles, onMenuOpen, onLogout }) => {
       <div className="hidden md:block" />
 
       <div className="flex items-center gap-4">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+        >
+          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+
         <button
           type="button"
           className="relative p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
