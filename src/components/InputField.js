@@ -9,10 +9,10 @@ const InputField = ({ label, type = 'text', name, value, onChange, placeholder, 
 
   return (
     <div className="w-full mb-4">
-      <label className="block text-xs font-bold text-green-950 uppercase tracking-wider mb-1.5">
+      <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
         {label} {required && <span className="text-red-500">*</span>}
       </label>
-      
+
       <div className="relative">
         <input
           type={currentType}
@@ -22,9 +22,9 @@ const InputField = ({ label, type = 'text', name, value, onChange, placeholder, 
           placeholder={placeholder}
           required={required}
           className={`w-full pl-4 pr-12 py-3 bg-white border text-gray-900 placeholder-gray-400 rounded-lg focus:outline-none focus:ring-2 transition-all duration-200 ${
-            error 
-              ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500' 
-              : 'border-gray-200 focus:ring-green-800/10 focus:border-green-800'
+            error
+              ? 'border-red-500 focus:ring-red-500/20 focus:border-red-500'
+              : 'border-gray-200 focus:ring-violet-500/10 focus:border-violet-500'
           }`}
         />
 
