@@ -108,6 +108,7 @@ const categoriesSlice = createSlice({
   initialState: {
     categories: [],
     currentCategory: null,
+    pagination: null,
     loading: false,
     mutationLoading: false,
     error: null,
@@ -129,6 +130,7 @@ const categoriesSlice = createSlice({
       .addCase(fetchCategories.fulfilled, (state, action) => {
         state.loading = false;
         state.categories = action.payload?.data || [];
+        state.pagination = action.payload?.meta || action.payload?.pagination || null;
       })
       .addCase(fetchCategories.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
 

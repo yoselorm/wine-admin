@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchIntelligenceAlerts, fetchMarketIndicators, clearIntelligenceError } from '../redux/IntelligenceSlice';
 import { AlertTriangle, Loader2, BarChart3 } from 'lucide-react';
@@ -7,6 +7,7 @@ import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 
 const SEVERITY_TONE = { high: 'red', critical: 'red', medium: 'yellow', low: 'sky' };
+const SEVERITIES = ['high', 'medium', 'low'];
 
 const formatReadableDate = (dateStr) => {
   if (!dateStr) return '';
@@ -18,16 +19,15 @@ const formatReadableDate = (dateStr) => {
 const Intelligence = () => {
   const dispatch = useDispatch();
   const { alerts, indicators, alertsLoading, indicatorsLoading, error } = useSelector((state) => state.intelligence);
-
-  const loadData = () => {
-    dispatch(fetchIntelligenceAlerts({ limit: 10 }));
-    dispatch(fetchMarketIndicators());
-  };
+  const [severity, setSeverity] = useState('');
 
   useEffect(() => {
-    loadData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    dispatch(fetchIntelligenceAlerts({ limit: 10, severity: severity || undefined, is_active: true }));
+  }, [dispatch, severity]);
+
+  useEffect(() => {
+    dispatch(fetchMarketIndicators());
+  }, [dispatch]);
 
   useEffect(() => {
     if (error) {
@@ -38,9 +38,19 @@ const Intelligence = () => {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Intelligence</h1>
-        <p className="text-sm text-gray-500 mt-1">AI-generated market alerts and indicators for import decisions. Read-only feed.</p>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Intelligence</h1>
+          <p className="text-sm text-gray-500 mt-1">AI-generated market alerts and indicators for import decisions. Read-only feed.</p>
+        </div>
+        <select
+          value={severity}
+          onChange={(e) => setSeverity(e.target.value)}
+          className="px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500"
+        >
+          <option value="">All severities</option>
+          {SEVERITIES.map((s) => <option key={s} value={s}>{s[0].toUpperCase() + s.slice(1)}</option>)}
+        </select>
       </div>
 
       {indicatorsLoading && indicators.length === 0 ? (
@@ -82,7 +92,7 @@ const Intelligence = () => {
         </Card>
       ) : (
         <div className="space-y-4">
-          {alerts.map((alert) => (
+          {alerts?.map((alert) => (
             <Card key={alert.id}>
               <div className="flex items-start justify-between gap-4 mb-2">
                 <div className="flex items-center gap-3">

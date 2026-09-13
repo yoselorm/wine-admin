@@ -97,8 +97,60 @@ export const logoutAdmin = createAsyncThunk(
       localStorage.removeItem('admin_data');
       return true;
     } catch (err) {
-      localStorage.removeItem('admin_data'); 
+      localStorage.removeItem('admin_data');
       return rejectWithValue('Logout error');
+    }
+  }
+);
+
+// 7b. Accept Admin Invite (public, no auth) — note this sits at /api/admin/... not /api/v1/admin/...
+export const acceptInvite = createAsyncThunk(
+  'auth/acceptInvite',
+  async (inviteData, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`${api_url}/admin/accept-invite`, inviteData);
+      return response.data?.data || response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || 'Failed to accept invite.');
+    }
+  }
+);
+
+// 8. Fetch Own Profile
+export const fetchProfile = createAsyncThunk(
+  'auth/fetchProfile',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`${api_url}/v1/admin/profile`);
+      return response.data?.data || response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || 'Failed to fetch profile.');
+    }
+  }
+);
+
+// 9. Update Own Profile (name, email, etc.)
+export const updateProfile = createAsyncThunk(
+  'auth/updateProfile',
+  async (profileData, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`${api_url}/v1/admin/profile`, profileData);
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || 'Failed to update profile.');
+    }
+  }
+);
+
+// 10. Update Own Password
+export const updateOwnPassword = createAsyncThunk(
+  'auth/updateOwnPassword',
+  async (passwordData, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`${api_url}/v1/admin/profile/password`, passwordData);
+      return response.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || 'Failed to update password.');
     }
   }
 );
@@ -206,6 +258,54 @@ const authSlice = createSlice({
         state.admin = null;
         state.token = null;
         state.isAuthenticated = false;
+      })
+
+      .addCase(acceptInvite.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(acceptInvite.fulfilled, (state, action) => {
+        state.loading = false;
+        state.admin = action.payload;
+        state.token = action.payload.token;
+        state.isAuthenticated = true;
+        localStorage.setItem('admin_data', JSON.stringify(action.payload));
+      })
+      .addCase(acceptInvite.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      .addCase(fetchProfile.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(fetchProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        state.admin = { ...state.admin, ...action.payload };
+        localStorage.setItem('admin_data', JSON.stringify(state.admin));
+      })
+      .addCase(fetchProfile.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      .addCase(updateProfile.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.loading = false;
+        state.message = action.payload?.message || 'Profile updated successfully.';
+        if (action.payload?.data) {
+          state.admin = { ...state.admin, ...action.payload.data };
+          localStorage.setItem('admin_data', JSON.stringify(state.admin));
+        }
+      })
+      .addCase(updateProfile.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+
+      .addCase(updateOwnPassword.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(updateOwnPassword.fulfilled, (state, action) => {
+        state.loading = false;
+        state.message = action.payload?.message || 'Password updated successfully.';
+      })
+      .addCase(updateOwnPassword.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       });
   },
 });

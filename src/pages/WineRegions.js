@@ -11,24 +11,38 @@ import { Loader2, Plus, Upload } from 'lucide-react';
 import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Switch from '../components/ui/Switch';
+import Pagination from '../components/Pagination';
+import api from '../services/Api';
+import { api_url } from '../utils/config';
 
 const emptyDetail = {
   name: '', slug: '', description: '', type: 'region', parent_id: '',
   iso_code: '', flag_url: '', image_url: '', is_published: true, position: 1,
 };
+const PER_PAGE = 10;
 
 const WineRegions = () => {
   const dispatch = useDispatch();
-  const { regions, loading, mutationLoading, error, successMessage } = useSelector((s) => s.wineRegions);
+  const { regions, pagination, loading, mutationLoading, error, successMessage } = useSelector((s) => s.wineRegions);
 
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(emptyDetail);
   const [newName, setNewName] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  // Kept separate from the paginated `regions` list so the Parent Region picker
+  // below always offers every region, not just whichever page is on screen.
+  const [allRegions, setAllRegions] = useState([]);
 
   useEffect(() => {
-    dispatch(fetchWineRegions({ per_page: 200 }));
-  }, [dispatch]);
+    dispatch(fetchWineRegions({ page: currentPage, per_page: PER_PAGE }));
+  }, [dispatch, currentPage]);
+
+  useEffect(() => {
+    api.get(`${api_url}/v1/admin/wine-regions`, { params: { per_page: 500 } })
+      .then((res) => setAllRegions(res.data?.data || []))
+      .catch(() => {});
+  }, [successMessage]);
 
   useEffect(() => {
     if (!selectedId && regions?.length) setSelectedId(regions[0].id);
@@ -53,9 +67,9 @@ const WineRegions = () => {
       toast.success(successMessage);
       dispatch(clearWineRegionStatus());
       // createWineRegion/updateWineRegion don't merge into local state, so refetch to reflect changes
-      dispatch(fetchWineRegions({ per_page: 200 }));
+      dispatch(fetchWineRegions({ page: currentPage, per_page: PER_PAGE }));
     }
-  }, [error, successMessage, dispatch]);
+  }, [error, successMessage, dispatch, currentPage]);
 
   const handleAddNew = () => {
     if (!newName.trim()) return;
@@ -106,7 +120,7 @@ const WineRegions = () => {
                   <div className="min-w-0">
                     <p className={`text-sm font-semibold truncate ${selectedId === r.id ? 'text-violet-700' : 'text-gray-900'}`}>{r.name}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {r.type}{r.parent_id ? ` · ${regions.find((p) => p.id === r.parent_id)?.name || ''}` : ''}
+                      {r.type}{r.parent_id ? ` · ${allRegions.find((p) => p.id === r.parent_id)?.name || ''}` : ''}
                     </p>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0 pl-2">
@@ -117,6 +131,11 @@ const WineRegions = () => {
               ))
             )}
           </div>
+          {pagination && (
+            <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0">
+              <Pagination meta={pagination} onPageChange={setCurrentPage} compact />
+            </div>
+          )}
           <div className="p-4 border-t border-gray-100 flex-shrink-0 space-y-2">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">New Region</p>
             <input
@@ -164,7 +183,7 @@ const WineRegions = () => {
                   <select value={detail.parent_id} onChange={(e) => setDetail((p) => ({ ...p, parent_id: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-200 bg-white rounded-md focus:outline-none focus:border-violet-500">
                     <option value="">None</option>
-                    {regions.filter((r) => r.id !== selectedId).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    {allRegions.filter((r) => r.id !== selectedId).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
                   </select>
                   <p className="text-xs text-gray-400 mt-1">e.g. Stellenbosch sits under South Africa</p>
                 </div>

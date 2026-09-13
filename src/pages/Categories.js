@@ -10,21 +10,24 @@ import {
 import { Loader2, Plus, Upload } from 'lucide-react';
 import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import Pagination from '../components/Pagination';
 
 const emptyDetail = { name: '', slug: '', description: '', image_url: '', parent_id: '' };
+const PER_PAGE = 10;
 
 const Categories = () => {
   const dispatch = useDispatch();
-  const { categories, loading, mutationLoading, error, message } = useSelector((state) => state.categories);
+  const { categories, pagination, loading, mutationLoading, error, message } = useSelector((state) => state.categories);
 
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(emptyDetail);
   const [newName, setNewName] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    dispatch(fetchCategories());
-  }, [dispatch]);
+    dispatch(fetchCategories({ page: currentPage, per_page: PER_PAGE }));
+  }, [dispatch, currentPage]);
 
   useEffect(() => {
     if (!selectedId && categories?.length) setSelectedId(categories[0].id);
@@ -113,6 +116,11 @@ const Categories = () => {
               ))
             )}
           </div>
+          {pagination && (
+            <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0">
+              <Pagination meta={pagination} onPageChange={setCurrentPage} compact />
+            </div>
+          )}
           <div className="p-4 border-t border-gray-100 flex-shrink-0 space-y-2">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">New Category</p>
             <input

@@ -1,7 +1,7 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
-const Pagination = ({ meta, onPageChange }) => {
+const Pagination = ({ meta, onPageChange, compact = false }) => {
   if (!meta) return null;
 
   // Fallbacks to support both snake_case (Laravel) and camelCase payloads
@@ -13,6 +13,30 @@ const Pagination = ({ meta, onPageChange }) => {
 
   // Render nothing if there's only 1 page
   if (lastPage <= 1) return null;
+
+  if (compact) {
+    return (
+      <div className="flex items-center justify-between gap-2 text-xs text-gray-500">
+        <button
+          type="button"
+          disabled={currentPage === 1}
+          onClick={() => onPageChange(currentPage - 1)}
+          className="inline-flex items-center justify-center p-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white transition-colors"
+        >
+          <ChevronLeft size={14} />
+        </button>
+        <span className="font-medium text-gray-600 whitespace-nowrap">Page {currentPage} of {lastPage}</span>
+        <button
+          type="button"
+          disabled={currentPage === lastPage}
+          onClick={() => onPageChange(currentPage + 1)}
+          className="inline-flex items-center justify-center p-1.5 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white transition-colors"
+        >
+          <ChevronRight size={14} />
+        </button>
+      </div>
+    );
+  }
 
   // Bulletproof page range generator
   const getPageNumbers = () => {

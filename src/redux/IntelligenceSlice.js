@@ -62,7 +62,7 @@ const intelligenceSlice = createSlice({
       })
       .addCase(fetchIntelligenceAlerts.fulfilled, (state, action) => {
         state.alertsLoading = false;
-        state.alerts = action.payload.data || [];
+        state.alerts =  action.payload.data?.data || [];
         state.alertsPagination = action.payload.meta || null;
       })
       .addCase(fetchIntelligenceAlerts.rejected, (state, action) => {

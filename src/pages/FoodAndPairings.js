@@ -24,14 +24,16 @@ import { Loader2, Plus, X } from 'lucide-react';
 import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Button from '../components/ui/Button';
+import Pagination from '../components/Pagination';
 
 const ATTRIBUTE_TYPES = ['flavour', 'texture', 'aroma', 'colour', 'finish', 'pairing'];
 
 const emptyDetail = { name: '', origin: '', description: '', image_url: '' };
+const PER_PAGE = 10;
 
 const FoodAndPairings = () => {
   const dispatch = useDispatch();
-  const { foodDishes: dishes, loading, mutationLoading, error, successMessage } = useSelector((s) => s.foodDishes);
+  const { foodDishes: dishes, pagination, loading, mutationLoading, error, successMessage } = useSelector((s) => s.foodDishes);
   const {
     foodAttributes,
     mutationLoading: attrMutationLoading,
@@ -55,15 +57,15 @@ const FoodAndPairings = () => {
   const [pairingDeleteTarget, setPairingDeleteTarget] = useState(null);
   const [attrDraft, setAttrDraft] = useState({ type: 'flavour', value: '5' });
   const [pairingDraft, setPairingDraft] = useState({ product_id: '', reason: '' });
-
-  const loadAll = () => {
-    dispatch(fetchFoodDishes({ per_page: 200 }));
-    dispatch(fetchFoodAttributes({ per_page: 500 }));
-    dispatch(fetchWineFoodPairings({ per_page: 500 }));
-  };
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    loadAll();
+    dispatch(fetchFoodDishes({ page: currentPage, per_page: PER_PAGE }));
+  }, [dispatch, currentPage]);
+
+  useEffect(() => {
+    dispatch(fetchFoodAttributes({ per_page: 500 }));
+    dispatch(fetchWineFoodPairings({ per_page: 500 }));
     dispatch(fetchProducts({ per_page: 200 }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -86,9 +88,9 @@ const FoodAndPairings = () => {
       toast.success(successMessage);
       dispatch(clearFoodDishStatus());
       // createFoodDish/updateFoodDish don't merge into local state, so refetch to reflect changes
-      dispatch(fetchFoodDishes({ per_page: 200 }));
+      dispatch(fetchFoodDishes({ page: currentPage, per_page: PER_PAGE }));
     }
-  }, [error, successMessage, dispatch]);
+  }, [error, successMessage, dispatch, currentPage]);
 
   useEffect(() => {
     if (attrError) { toast.error(attrError); dispatch(clearFoodAttributeStatus()); }
@@ -202,6 +204,11 @@ const FoodAndPairings = () => {
               })
             )}
           </div>
+          {pagination && (
+            <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0">
+              <Pagination meta={pagination} onPageChange={setCurrentPage} compact />
+            </div>
+          )}
           <div className="p-4 border-t border-gray-100 flex-shrink-0 space-y-2">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">New Dish</p>
             <input

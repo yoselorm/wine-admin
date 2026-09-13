@@ -13,6 +13,25 @@ const prepareFormData = (data) => {
   return formData;
 };
 
+// 0. Draft a wine card with AI (writes nothing — the draft is reviewed and saved via the update/create endpoints)
+export const draftWineCard = createAsyncThunk(
+  'products/draftWineCard',
+  async (draftInput, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`${api_url}/v1/admin/wine-cards/draft`, draftInput);
+      return response.data?.data || response.data;
+    } catch (err) {
+      if (err.response?.status === 429) {
+        return rejectWithValue('Too many draft requests — please wait a minute and try again.');
+      }
+      if (err.response?.status === 403) {
+        return rejectWithValue("You don't have permission to draft wine cards.");
+      }
+      return rejectWithValue(err.response?.data?.message || 'Failed to draft wine card.');
+    }
+  }
+);
+
 // 1. Get Products (GET) - Supports all filter parameters from your Swagger documentation
 export const fetchProducts = createAsyncThunk(
   'products/fetchProducts',
@@ -123,6 +142,8 @@ const productSlice = createSlice({
     pagination: null,
     loading: false,
     mutationLoading: false,
+    draftLoading: false,
+    draftError: null,
     error: null,
     successMessage: null,
   },
@@ -133,10 +154,26 @@ const productSlice = createSlice({
     },
     clearCurrentProduct: (state) => {
       state.currentProduct = null;
+    },
+    clearDraftError: (state) => {
+      state.draftError = null;
     }
   },
   extraReducers: (builder) => {
     builder
+      /* Wine Card AI Draft */
+      .addCase(draftWineCard.pending, (state) => {
+        state.draftLoading = true;
+        state.draftError = null;
+      })
+      .addCase(draftWineCard.fulfilled, (state) => {
+        state.draftLoading = false;
+      })
+      .addCase(draftWineCard.rejected, (state, action) => {
+        state.draftLoading = false;
+        state.draftError = action.payload;
+      })
+
       /* Fetch List Cases */
       .addCase(fetchProducts.pending, (state) => {
         state.loading = true;
@@ -221,5 +258,5 @@ const productSlice = createSlice({
   },
 });
 
-export const { clearProductStatus, clearCurrentProduct } = productSlice.actions;
+export const { clearProductStatus, clearCurrentProduct, clearDraftError } = productSlice.actions;
 export default productSlice.reducer;

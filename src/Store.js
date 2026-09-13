@@ -18,6 +18,10 @@ import wineFoodPairingReducer from './redux/WineFoodPairingSlice';
 import saleReducer from './redux/SalesReportSlice';
 import intelligenceReducer from './redux/IntelligenceSlice';
 import pageReducer from './redux/PagesSlice';
+import adminReducer from './redux/AdminSlice';
+import activityReducer from './redux/ActivitySlice';
+import reviewReducer from './redux/ReviewSlice';
+import customerReducer from './redux/CustomerSlice';
 
 const store = configureStore({
   reducer: {
@@ -40,6 +44,10 @@ const store = configureStore({
     salesReports: saleReducer,
     intelligence: intelligenceReducer,
     adminPages: pageReducer,
+    admins: adminReducer,
+    activity: activityReducer,
+    reviews: reviewReducer,
+    customers: customerReducer,
   },
 });
 

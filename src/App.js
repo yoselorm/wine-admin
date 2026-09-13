@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import AcceptInvitePage from './pages/AcceptInvitePage';
 import BlogCategories from './pages/BlogCategories';
 import BlogCategoryForm from './pages/BlogCategoryForm';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -45,6 +46,7 @@ function App() {
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/accept-invite" element={<AcceptInvitePage />} />
 
       {/* Protected Master Layout Route - Notice it's NOT self-closing anymore */}
       <Route

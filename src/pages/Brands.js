@@ -4,21 +4,24 @@ import { fetchBrands, createBrand, updateBrand, deleteBrand, clearBrandStatus } 
 import { Loader2, Plus, Upload } from 'lucide-react';
 import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import Pagination from '../components/Pagination';
 
 const emptyDetail = { name: '', slug: '', description: '', logo_url: '' };
+const PER_PAGE = 10;
 
 const Brands = () => {
   const dispatch = useDispatch();
-  const { brands, loading, mutationLoading, error, message } = useSelector((state) => state.brands);
+  const { brands, pagination, loading, mutationLoading, error, message } = useSelector((state) => state.brands);
 
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(emptyDetail);
   const [newName, setNewName] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    dispatch(fetchBrands());
-  }, [dispatch]);
+    dispatch(fetchBrands({ page: currentPage, per_page: PER_PAGE }));
+  }, [dispatch, currentPage]);
 
   useEffect(() => {
     if (!selectedId && brands?.length) setSelectedId(brands[0].id);
@@ -99,6 +102,11 @@ const Brands = () => {
               ))
             )}
           </div>
+          {pagination && (
+            <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0">
+              <Pagination meta={pagination} onPageChange={setCurrentPage} compact />
+            </div>
+          )}
           <div className="p-4 border-t border-gray-100 flex-shrink-0 space-y-2">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">New Brand</p>
             <input

@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Plus, Trash, Loader2, UploadCloud, X, Search } from "lucide-react";
+import { ArrowLeft, Plus, Trash, Loader2, UploadCloud, X, Search, Sparkles } from "lucide-react";
 
 import {
   fetchProductById,
   createProduct,
   updateProduct,
   deleteProduct,
+  draftWineCard,
   clearProductStatus,
   clearCurrentProduct,
+  clearDraftError,
 } from "../redux/ProductSlice";
 import { fetchBrands } from "../redux/BrandSlice";
 import { fetchCategories } from "../redux/CategorySlice";
@@ -23,7 +25,8 @@ import Pill from "../components/ui/Pill";
 import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 import toast from "../components/Toast";
 
-const WINE_ATTRIBUTE_TYPES = ["tannin", "acidity", "body", "sweetness", "alcohol", "aroma", "finish"];
+const WINE_ATTRIBUTE_TYPES = ["bold", "dry", "acidity", "tannic", "soft", "light", "fizzy", "sweet"];
+const WINE_COLOURS = ["Red", "White", "Rosé", "Sparkling", "Dessert"];
 
 const initialFormState = {
   name: "",
@@ -31,6 +34,9 @@ const initialFormState = {
   slug: "",
   description: "",
   short_description: "",
+  pairing_notes: "",
+  local_pairing_notes: "",
+  producer_notes: "",
   price: "",
   sale_price: "",
   stock_quantity: "",
@@ -50,6 +56,17 @@ const initialFormState = {
   pairings: [],
 };
 
+const initialDraftInput = {
+  producer: "",
+  country: "",
+  region: "",
+  grape: "",
+  vintage: "",
+  alcohol_abv: "",
+  colour: "",
+  notes: "",
+};
+
 const extractIds = (idsArray, objectsArray) => {
   if (Array.isArray(idsArray) && idsArray.length > 0) {
     return idsArray.map((item) => (typeof item === "object" ? item.id : item));
@@ -66,7 +83,7 @@ const ProductForm = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { currentProduct, loading, mutationLoading, error, successMessage } = useSelector((s) => s.products);
+  const { currentProduct, loading, mutationLoading, draftLoading, draftError, error, successMessage } = useSelector((s) => s.products);
   const { brands } = useSelector((state) => state.brands || { items: [] });
   const { categories } = useSelector((state) => state.categories || { items: [] });
   const { regions } = useSelector((state) => state.wineRegions || { items: [] });
@@ -76,9 +93,11 @@ const ProductForm = () => {
   const [formData, setFormData] = useState(initialFormState);
   const [regionSearch, setRegionSearch] = useState("");
   const [blogSearch, setBlogSearch] = useState("");
-  const [attrDraft, setAttrDraft] = useState({ type: "body", value: "5" });
+  const [attrDraft, setAttrDraft] = useState({ type: "bold", value: "5" });
   const [pairingDraft, setPairingDraft] = useState({ dish_id: "", reason: "" });
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [aiInput, setAiInput] = useState(initialDraftInput);
+  const [showAiPanel, setShowAiPanel] = useState(false);
 
   useEffect(() => {
     dispatch(fetchBrands());
@@ -129,6 +148,13 @@ const ProductForm = () => {
       navigate("/dashboard/products");
     }
   }, [error, successMessage, dispatch, navigate]);
+
+  useEffect(() => {
+    if (draftError) {
+      toast.error(draftError);
+      dispatch(clearDraftError());
+    }
+  }, [draftError, dispatch]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -181,6 +207,40 @@ const ProductForm = () => {
   const handleAddPairing = () => {
     if (!pairingDraft.dish_id) return;
     addNestedObjectItem("pairings", { ...pairingDraft });
+  };
+
+  const handleDraftWithAi = async () => {
+    if (!formData.name.trim()) {
+      toast.error("Enter a product name first — the draft is built from it.");
+      return;
+    }
+    const payload = { name: formData.name };
+    Object.entries(aiInput).forEach(([key, value]) => {
+      if (value !== "" && value !== null && value !== undefined) {
+        payload[key] = key === "vintage" || key === "alcohol_abv" ? Number(value) : value;
+      }
+    });
+
+    const result = await dispatch(draftWineCard(payload));
+    if (draftWineCard.fulfilled.match(result)) {
+      const draft = result.payload?.draft || {};
+      setFormData((prev) => {
+        const next = { ...prev };
+        if (draft.description) next.description = draft.description;
+        if (draft.pairing_notes) next.pairing_notes = draft.pairing_notes;
+        if (draft.local_pairing_notes) next.local_pairing_notes = draft.local_pairing_notes;
+        if (draft.producer_notes) next.producer_notes = draft.producer_notes;
+        if (Array.isArray(draft.characteristics) && draft.characteristics.length > 0) {
+          const axesInDraft = draft.characteristics.map((c) => c.axis);
+          next.wine_attributes = [
+            ...prev.wine_attributes.filter((a) => !axesInDraft.includes(a.attribute_type)),
+            ...draft.characteristics.map((c) => ({ attribute_type: c.axis, value: c.score })),
+          ];
+        }
+        return next;
+      });
+      toast.success("Draft ready — review and edit before saving.");
+    }
   };
 
   const handleImageFiles = (e) => {
@@ -243,7 +303,59 @@ const ProductForm = () => {
       </div>
 
       <form id="product-form" onSubmit={handleSubmit} className="space-y-6 pb-10">
-        <Card title="Details">
+        <Card
+          title="Details"
+          action={
+            <button
+              type="button"
+              onClick={() => setShowAiPanel((v) => !v)}
+              className="flex items-center gap-1.5 text-sm font-semibold text-violet-600 hover:text-violet-700"
+            >
+              <Sparkles size={14} /> Draft with AI
+            </button>
+          }
+        >
+          {showAiPanel && (
+            <div className="mb-5 p-4 bg-violet-50/60 border border-violet-100 rounded-md text-sm space-y-3">
+              <p className="text-xs text-gray-500">
+                Fill in what you know from the supplier sheet — the more facts you give it, the better the draft. Only the product name is required.
+              </p>
+              <div className="grid grid-cols-3 gap-3">
+                <input type="text" placeholder="Producer" value={aiInput.producer}
+                  onChange={(e) => setAiInput((p) => ({ ...p, producer: e.target.value }))}
+                  className="px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500" />
+                <input type="text" placeholder="Country" value={aiInput.country}
+                  onChange={(e) => setAiInput((p) => ({ ...p, country: e.target.value }))}
+                  className="px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500" />
+                <input type="text" placeholder="Region" value={aiInput.region}
+                  onChange={(e) => setAiInput((p) => ({ ...p, region: e.target.value }))}
+                  className="px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500" />
+                <input type="text" placeholder="Grape" value={aiInput.grape}
+                  onChange={(e) => setAiInput((p) => ({ ...p, grape: e.target.value }))}
+                  className="px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500" />
+                <input type="number" placeholder="Vintage" value={aiInput.vintage}
+                  onChange={(e) => setAiInput((p) => ({ ...p, vintage: e.target.value }))}
+                  className="px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500" />
+                <input type="number" step="0.1" placeholder="Alcohol ABV %" value={aiInput.alcohol_abv}
+                  onChange={(e) => setAiInput((p) => ({ ...p, alcohol_abv: e.target.value }))}
+                  className="px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500" />
+                <select value={aiInput.colour} onChange={(e) => setAiInput((p) => ({ ...p, colour: e.target.value }))}
+                  className="col-span-3 px-3 py-2 border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500">
+                  <option value="">Colour (optional)</option>
+                  {WINE_COLOURS.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <textarea rows="3" placeholder="Paste raw supplier text here (optional)" value={aiInput.notes}
+                onChange={(e) => setAiInput((p) => ({ ...p, notes: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md bg-white resize-none focus:outline-none focus:border-violet-500" />
+              <div className="flex items-center gap-3">
+                <Button type="button" size="sm" disabled={draftLoading} onClick={handleDraftWithAi}>
+                  {draftLoading ? <Loader2 size={14} className="animate-spin mr-1.5" /> : <Sparkles size={14} className="mr-1.5" />}
+                  {draftLoading ? "Drafting… this can take up to 10s" : "Generate Draft"}
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-x-4 gap-y-5 text-sm">
             <div>
               <label className="block font-medium text-gray-700 mb-1.5">Product Name <span className="text-red-500">*</span></label>
@@ -281,6 +393,24 @@ const ProductForm = () => {
               <label className="block font-medium text-gray-700 mb-1.5">Description</label>
               <textarea rows="4" name="description" value={formData.description || ""} onChange={handleChange}
                 placeholder="Tasting notes, story of the estate, vintage conditions..."
+                className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none focus:outline-none focus:border-violet-500" />
+            </div>
+            <div className="col-span-2">
+              <label className="block font-medium text-gray-700 mb-1.5">Pairing Notes</label>
+              <textarea rows="2" name="pairing_notes" value={formData.pairing_notes || ""} onChange={handleChange}
+                placeholder="International food pairing suggestions..."
+                className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none focus:outline-none focus:border-violet-500" />
+            </div>
+            <div className="col-span-2">
+              <label className="block font-medium text-gray-700 mb-1.5">Local Pairing Notes (Ghana)</label>
+              <textarea rows="2" name="local_pairing_notes" value={formData.local_pairing_notes || ""} onChange={handleChange}
+                placeholder="How this wine works with Ghanaian dishes..."
+                className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none focus:outline-none focus:border-violet-500" />
+            </div>
+            <div className="col-span-2">
+              <label className="block font-medium text-gray-700 mb-1.5">Producer Notes</label>
+              <textarea rows="2" name="producer_notes" value={formData.producer_notes || ""} onChange={handleChange}
+                placeholder="A line or two about the estate/producer..."
                 className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none focus:outline-none focus:border-violet-500" />
             </div>
           </div>
