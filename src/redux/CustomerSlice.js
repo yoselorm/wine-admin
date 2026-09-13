@@ -81,7 +81,7 @@ const customerSlice = createSlice({
       .addCase(fetchCustomerDetails.rejected, (state, action) => { state.detailsLoading = false; state.error = action.payload; })
 
       .addCase(fetchCustomerWalletTransactions.fulfilled, (state, action) => {
-        state.walletTransactions = action.payload.data || [];
+        state.walletTransactions = action.payload.data?.transactions?.data || [];
       });
   },
 });
