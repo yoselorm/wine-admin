@@ -5,9 +5,8 @@ import {
   fetchProducts,
   clearProductStatus
 } from '../redux/ProductSlice';
-import { ShoppingBag, Plus, Search, Loader2, Star } from 'lucide-react';
+import { ShoppingBag, Plus, Search, Loader2, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from '../components/Toast';
-import Pagination from '../components/Pagination';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -36,16 +35,22 @@ const statusInfo = (prod) => {
   return { label: 'In Stock', tone: 'green' };
 };
 
+// GET /admin/products is the flat paginator shape (data IS the array, no meta/total), so there is
+// no way to know how many pages exist. We request a fixed page size and infer whether a next page
+// might exist from whether this page came back full.
+const PER_PAGE = 20;
+
 const Products = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { items: products, pagination, loading, error, successMessage } = useSelector(s => s.products);
+  const { items: products, loading, error, successMessage } = useSelector(s => s.products);
 
   const [searchInputValue, setSearchInputValue] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const hasNextPage = products.length === PER_PAGE;
 
   useEffect(() => {
-    dispatch(fetchProducts({ page: currentPage, search: searchInputValue }));
+    dispatch(fetchProducts({ page: currentPage, per_page: PER_PAGE, search: searchInputValue }));
   }, [currentPage]);
 
   useEffect(() => {
@@ -59,7 +64,7 @@ const Products = () => {
   const debouncedFetch = useCallback(
     debounce((str) => {
       setCurrentPage(1);
-      dispatch(fetchProducts({ page: 1, search: str }));
+      dispatch(fetchProducts({ page: 1, per_page: PER_PAGE, search: str }));
     }, 400),
     [dispatch]
   );
@@ -69,10 +74,6 @@ const Products = () => {
     debouncedFetch(e.target.value);
   };
 
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-  };
-
   return (
     <div className="space-y-5">
 
@@ -80,7 +81,7 @@ const Products = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-2.5">
           Products
-          <span className="text-2xl font-bold text-gray-300">{pagination?.total ?? products.length}</span>
+          <span className="text-2xl font-bold text-gray-300">{products.length}</span>
         </h1>
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -166,8 +167,26 @@ const Products = () => {
               </table>
             </div>
 
-            <div className="px-5 py-4 border-t border-gray-100">
-              <Pagination meta={pagination} onPageChange={handlePageChange} />
+            <div className="px-5 py-4 border-t border-gray-100 flex items-center justify-between">
+              <span className="text-xs text-gray-400">Page {currentPage}</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white transition-colors"
+                >
+                  <ChevronLeft size={13} /> Previous
+                </button>
+                <button
+                  type="button"
+                  disabled={!hasNextPage}
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:hover:bg-white transition-colors"
+                >
+                  Next <ChevronRight size={13} />
+                </button>
+              </div>
             </div>
           </>
         )}

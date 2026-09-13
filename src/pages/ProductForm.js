@@ -246,16 +246,25 @@ const ProductForm = () => {
   const handleImageFiles = (e) => {
     const files = Array.from(e.target.files || []);
     files.forEach((file) => {
-      addNestedObjectItem("images", { image_url: file.name, file, is_upload: true, alt_text: "", is_featured: formData.images.length === 0 });
+      addNestedObjectItem("images", { file, is_upload: true, alt_text: "", is_primary: formData.images.length === 0 });
     });
   };
 
+  // Each image entry must carry `image` (a new upload) or `image_url` (an existing image being
+  // kept), never both and never neither — the API replaces the full image set with whatever is sent.
+  const buildImagesPayload = () =>
+    formData.images.map((img) => {
+      const base = { alt_text: img.alt_text || "", is_primary: !!img.is_primary };
+      return img.is_upload && img.file ? { ...base, image: img.file } : { ...base, image_url: img.image_url };
+    });
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    const productData = { ...formData, images: buildImagesPayload() };
     if (isEditing) {
-      dispatch(updateProduct({ id, productData: formData }));
+      dispatch(updateProduct({ id, productData }));
     } else {
-      dispatch(createProduct(formData));
+      dispatch(createProduct(productData));
     }
   };
 

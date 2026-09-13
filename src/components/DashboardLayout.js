@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { logoutAdmin } from '../redux/AuthSlice';
+import { getAdminRoleNames, getAdminPermissionNames } from '../utils/permissions';
 
 import DashboardSidebar from './DashboardSidebar';
 import DashboardHeader from './DashboardHeader';
@@ -14,8 +15,8 @@ const DashboardLayout = () => {
   const navigate = useNavigate();
 
   const { admin, loading } = useSelector((state) => state.auth);
-  const roles = admin?.admin_roles || [];
-  const permissions = admin?.admin_permissions || [];
+  const roles = getAdminRoleNames(admin);
+  const permissions = getAdminPermissionNames(admin);
 
   const handleLogout = async () => {
     try {

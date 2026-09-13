@@ -11,13 +11,16 @@ import { Loader2, Plus, Upload } from 'lucide-react';
 import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Pagination from '../components/Pagination';
+import { paginateLocal } from '../utils/paginateLocal';
 
 const emptyDetail = { name: '', slug: '', description: '', image_url: '', parent_id: '' };
 const PER_PAGE = 10;
 
 const Categories = () => {
   const dispatch = useDispatch();
-  const { categories, pagination, loading, mutationLoading, error, message } = useSelector((state) => state.categories);
+  // GET /admin/categories is the flat paginator shape (data IS the array, no meta) — fetch
+  // everything once and paginate client-side instead of relying on server page metadata.
+  const { categories, loading, mutationLoading, error, message } = useSelector((state) => state.categories);
 
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(emptyDetail);
@@ -26,8 +29,10 @@ const Categories = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    dispatch(fetchCategories({ page: currentPage, per_page: PER_PAGE }));
-  }, [dispatch, currentPage]);
+    dispatch(fetchCategories({ per_page: 500 }));
+  }, [dispatch]);
+
+  const { items: pagedCategories, meta: pagination } = paginateLocal(categories || [], currentPage, PER_PAGE);
 
   useEffect(() => {
     if (!selectedId && categories?.length) setSelectedId(categories[0].id);
@@ -96,7 +101,7 @@ const Categories = () => {
             {loading && categories.length === 0 ? (
               <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" size={20} /></div>
             ) : (
-              categories.map((cat) => (
+              pagedCategories.map((cat) => (
                 <div
                   key={cat.id}
                   onClick={() => setSelectedId(cat.id)}

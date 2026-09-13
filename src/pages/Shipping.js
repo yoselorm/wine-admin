@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   fetchShippingZones,
@@ -13,7 +13,8 @@ import {
   deleteShippingRate,
   clearShippingRateStatus,
 } from '../redux/ShippingRateSlice';
-import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { fetchSuburbs, updateSuburb, clearSuburbStatus } from '../redux/SuburbSlice';
+import { Loader2, Plus, Trash2, Search } from 'lucide-react';
 import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Button from '../components/ui/Button';
@@ -30,6 +31,11 @@ const Shipping = () => {
     error: rateError,
     successMessage: rateSuccessMessage,
   } = useSelector((s) => s.shippingRates);
+  const {
+    suburbs,
+    error: suburbError,
+    successMessage: suburbSuccessMessage,
+  } = useSelector((s) => s.suburbs);
 
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(emptyDetail);
@@ -37,10 +43,14 @@ const Shipping = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [rateDeleteTarget, setRateDeleteTarget] = useState(null);
   const [rateDraft, setRateDraft] = useState(emptyRate);
+  const [suburbSearch, setSuburbSearch] = useState('');
+  const [selectedSuburbIds, setSelectedSuburbIds] = useState(new Set());
+  const [savingSuburbs, setSavingSuburbs] = useState(false);
 
   useEffect(() => {
     dispatch(fetchShippingZones({ per_page: 200 }));
     dispatch(fetchShippingRates({ per_page: 500 }));
+    dispatch(fetchSuburbs({ per_page: 500 }));
   }, [dispatch]);
 
   useEffect(() => {
@@ -70,6 +80,56 @@ const Shipping = () => {
       dispatch(fetchShippingRates({ per_page: 500 }));
     }
   }, [rateError, rateSuccessMessage, dispatch]);
+
+  useEffect(() => {
+    if (suburbError) { toast.error(suburbError); dispatch(clearSuburbStatus()); }
+    if (suburbSuccessMessage) { dispatch(clearSuburbStatus()); }
+  }, [suburbError, suburbSuccessMessage, dispatch]);
+
+  // Suburbs the server currently has assigned to the selected zone.
+  const committedSuburbIds = useMemo(
+    () => new Set((suburbs || [])
+      .filter((s) => (s.shipping_zone_id || s.shipping_zone?.id) === selectedId)
+      .map((s) => s.id)),
+    [suburbs, selectedId]
+  );
+
+  // Reset the staged checklist to match the server whenever the selected zone changes.
+  useEffect(() => {
+    setSelectedSuburbIds(new Set(committedSuburbIds));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
+
+  const suburbsDirty = selectedSuburbIds.size !== committedSuburbIds.size ||
+    [...selectedSuburbIds].some((id) => !committedSuburbIds.has(id));
+
+  const handleToggleSuburb = (suburb, checked) => {
+    setSelectedSuburbIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(suburb.id); else next.delete(suburb.id);
+      return next;
+    });
+  };
+
+  const handleSaveSuburbs = async () => {
+    const toAssign = [...selectedSuburbIds].filter((id) => !committedSuburbIds.has(id));
+    const toClear = [...committedSuburbIds].filter((id) => !selectedSuburbIds.has(id));
+    if (toAssign.length === 0 && toClear.length === 0) return;
+
+    setSavingSuburbs(true);
+    const results = await Promise.allSettled([
+      ...toAssign.map((id) => dispatch(updateSuburb({ id, data: { shipping_zone_id: selectedId } })).unwrap()),
+      ...toClear.map((id) => dispatch(updateSuburb({ id, data: { shipping_zone_id: null } })).unwrap()),
+    ]);
+    setSavingSuburbs(false);
+
+    const failed = results.filter((r) => r.status === 'rejected').length;
+    if (failed === 0) {
+      toast.success('Suburb assignments saved.');
+    } else {
+      toast.error(`${failed} suburb${failed !== 1 ? 's' : ''} failed to save — try again.`);
+    }
+  };
 
   const handleAddZone = () => {
     if (!newZoneName.trim()) return;
@@ -108,6 +168,7 @@ const Shipping = () => {
 
   const selected = zones?.find((z) => z.id === selectedId);
   const zoneRates = rates?.filter((r) => r.shipping_zone_id === selectedId) || [];
+  const filteredSuburbs = suburbs?.filter((s) => s.name.toLowerCase().includes(suburbSearch.toLowerCase())) || [];
 
   return (
     <div className="space-y-2">
@@ -182,7 +243,7 @@ const Shipping = () => {
                   <div>
                     <label className="block font-medium text-gray-700 mb-1.5">Description</label>
                     <input type="text" value={detail.description} onChange={(e) => setDetail((p) => ({ ...p, description: e.target.value }))}
-                      placeholder="Suburbs covered, delivery window..."
+                      placeholder="e.g. Same-day delivery within Accra Central"
                       className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
                   </div>
                 </div>
@@ -190,6 +251,49 @@ const Shipping = () => {
                   <button onClick={handleSaveZone} disabled={mutationLoading}
                     className="px-5 py-2 bg-gray-900 text-white text-sm font-semibold rounded-md hover:bg-gray-800 disabled:opacity-50 flex items-center gap-2">
                     {mutationLoading && <Loader2 size={14} className="animate-spin" />} Save Changes
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-white border border-gray-200 rounded-xl shadow-card p-6">
+                <h3 className="text-lg font-bold text-gray-900 mb-1">Suburbs in this Zone</h3>
+                <p className="text-xs text-gray-400 mb-4">Check every suburb this zone delivers to. A suburb assigned to no zone isn't offered at checkout.</p>
+                <div className="relative mb-3">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text" placeholder="Search suburbs..." value={suburbSearch} onChange={(e) => setSuburbSearch(e.target.value)}
+                    className="w-full pl-7 pr-2 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500"
+                  />
+                </div>
+                <div className="max-h-64 overflow-y-auto border border-gray-100 rounded-md divide-y divide-gray-100">
+                  {filteredSuburbs.map((s) => {
+                    const checked = selectedSuburbIds.has(s.id);
+                    const currentZoneId = s.shipping_zone_id || s.shipping_zone?.id;
+                    const otherZoneName = currentZoneId && currentZoneId !== selectedId &&
+                      (s.shipping_zone?.name || zones?.find((z) => z.id === currentZoneId)?.name);
+                    return (
+                      <label key={s.id} className="flex items-center justify-between px-3 py-2 text-sm cursor-pointer hover:bg-gray-50">
+                        <span className="flex items-center gap-2 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            disabled={savingSuburbs}
+                            onChange={(e) => handleToggleSuburb(s, e.target.checked)}
+                            className="rounded text-violet-600 focus:ring-0 flex-shrink-0"
+                          />
+                          <span className="truncate text-gray-700">{s.name}</span>
+                        </span>
+                        {otherZoneName && !checked && <span className="text-xs text-gray-400 flex-shrink-0">in {otherZoneName}</span>}
+                      </label>
+                    );
+                  })}
+                  {filteredSuburbs.length === 0 && <p className="text-sm text-gray-400 text-center py-6">No suburbs match this search.</p>}
+                </div>
+                <div className="flex items-center justify-between mt-4">
+                  <span className="text-xs text-gray-400">{selectedSuburbIds.size} suburb{selectedSuburbIds.size !== 1 ? 's' : ''} selected</span>
+                  <button onClick={handleSaveSuburbs} disabled={savingSuburbs || !suburbsDirty}
+                    className="px-5 py-2 bg-gray-900 text-white text-sm font-semibold rounded-md hover:bg-gray-800 disabled:opacity-50 flex items-center gap-2">
+                    {savingSuburbs && <Loader2 size={14} className="animate-spin" />} Save Changes
                   </button>
                 </div>
               </div>

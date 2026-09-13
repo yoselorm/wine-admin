@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Search, PlusCircle, Pencil, Trash2, RefreshCw, Loader2, History } from 'lucide-react';
 import Badge from '../components/ui/Badge';
+import Card from '../components/ui/Card';
+import Pagination from '../components/Pagination';
 import toast from '../components/Toast';
 import { fetchActivity, clearActivityError } from '../redux/ActivitySlice';
 
@@ -43,7 +45,7 @@ const formatTime = (dateStr) => {
 
 const Activity = () => {
   const dispatch = useDispatch();
-  const { entries, loading, error } = useSelector((s) => s.activity);
+  const { entries, pagination, loading, error } = useSelector((s) => s.activity);
 
   const [search, setSearch] = useState('');
   const [action, setAction] = useState('');
@@ -51,18 +53,23 @@ const Activity = () => {
   const [dateTo, setDateTo] = useState('');
   const debouncedSearch = useDebounce(search, 400);
 
-  const loadActivity = useCallback(() => {
+  const loadActivity = useCallback((page = 1) => {
     dispatch(fetchActivity({
       search: debouncedSearch || undefined,
       action: action || undefined,
       date_from: dateFrom || undefined,
       date_to: dateTo || undefined,
+      page,
     }));
   }, [dispatch, debouncedSearch, action, dateFrom, dateTo]);
 
   useEffect(() => {
-    loadActivity();
+    loadActivity(1);
   }, [loadActivity]);
+
+  const handlePageChange = (page) => {
+    loadActivity(page);
+  };
 
   useEffect(() => {
     if (error) { toast.error(error); dispatch(clearActivityError()); }
@@ -124,34 +131,46 @@ const Activity = () => {
           <p className="text-sm">No activity matches your filters.</p>
         </div>
       ) : (
-        Object.entries(grouped).map(([label, group]) => (
-          <div key={label} className="space-y-2">
-            <p className="text-xs font-bold uppercase tracking-wider text-gray-400 px-1">{label}</p>
-            <div className="space-y-2">
-              {group.map((e) => {
-                const meta = ACTION_META[e.action?.toLowerCase()] || ACTION_META.updated;
-                const adminName = e.admin_name || e.admin?.first_name ? `${e.admin?.first_name || ''} ${e.admin?.last_name || ''}`.trim() : (e.admin_name || 'System');
-                return (
-                  <div key={e.id} className="bg-white border border-gray-200 rounded-xl shadow-card px-5 py-3.5 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs text-white flex-shrink-0" style={{ backgroundColor: colorFor(adminName) }}>
-                      {initials(adminName)}
+        <>
+          {Object.entries(grouped).map(([label, group]) => (
+            <div key={label} className="space-y-2">
+              <p className="text-xs font-bold uppercase tracking-wider text-gray-400 px-1">{label}</p>
+              <div className="space-y-2">
+                {group.map((e) => {
+                  const meta = ACTION_META[e.action?.toLowerCase()] || ACTION_META.updated;
+                  const adminName = e.admin?.name || 'System';
+                  return (
+                    <div key={e.id} className="bg-white border border-gray-200 rounded-xl shadow-card px-5 py-3.5 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs text-white flex-shrink-0" style={{ backgroundColor: colorFor(adminName) }}>
+                        {initials(adminName)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-gray-900">
+                          <span className="font-semibold">{adminName}</span> · {e.description}
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {e.subject_area && <p className="text-xs text-gray-400 italic">{e.subject_area}{e.subject_label ? `: ${e.subject_label}` : ''}</p>}
+                          {e.changed_fields?.length > 0 && (
+                            <p className="text-xs text-gray-400">· changed {e.changed_fields.join(', ')}</p>
+                          )}
+                        </div>
+                      </div>
+                      <Badge tone={meta.tone}>{e.action}</Badge>
+                      <span className="text-xs text-gray-400 flex-shrink-0 w-12 text-right">{formatTime(e.created_at)}</span>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-900">
-                        <span className="font-semibold">{adminName}</span> · {e.description || e.text}
-                      </p>
-                      {(e.subject_type || e.detail) && (
-                        <p className="text-xs text-gray-400 italic mt-0.5">{e.detail || e.subject_type}</p>
-                      )}
-                    </div>
-                    <Badge tone={meta.tone}>{e.action}</Badge>
-                    <span className="text-xs text-gray-400 flex-shrink-0 w-12 text-right">{formatTime(e.created_at || e.date)}</span>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))
+          ))}
+          {pagination && (
+            <Card padded={false}>
+              <div className="px-5 py-4">
+                <Pagination meta={pagination} onPageChange={handlePageChange} />
+              </div>
+            </Card>
+          )}
+        </>
       )}
     </div>
   );

@@ -22,6 +22,7 @@ import adminReducer from './redux/AdminSlice';
 import activityReducer from './redux/ActivitySlice';
 import reviewReducer from './redux/ReviewSlice';
 import customerReducer from './redux/CustomerSlice';
+import suburbReducer from './redux/SuburbSlice';
 
 const store = configureStore({
   reducer: {
@@ -48,6 +49,7 @@ const store = configureStore({
     activity: activityReducer,
     reviews: reviewReducer,
     customers: customerReducer,
+    suburbs: suburbReducer,
   },
 });
 

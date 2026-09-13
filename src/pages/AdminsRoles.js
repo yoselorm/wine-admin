@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { ShieldCheck, Loader2, Pencil, Power } from 'lucide-react';
+import { ShieldCheck, Loader2, Pencil, Power, Search } from 'lucide-react';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import Pagination from '../components/Pagination';
 import toast from '../components/Toast';
 import {
   fetchAdmins,
@@ -23,10 +24,19 @@ const roleName = (r) => (typeof r === 'string' ? r : r?.name);
 const permName = (p) => (typeof p === 'string' ? p : p?.name);
 const toLabel = (slug) => slug.replace(/^(view|manage)-/, '').replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
+const useDebounce = (value, delay) => {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debounced;
+};
+
 const AdminsRoles = () => {
   const dispatch = useDispatch();
   const { admin: currentAdmin } = useSelector((s) => s.auth);
-  const { admins, roles, permissions, loading, rolesLoading, mutationLoading, error, successMessage } = useSelector((s) => s.admins);
+  const { admins, roles, permissions, pagination, loading, rolesLoading, mutationLoading, error, successMessage } = useSelector((s) => s.admins);
 
   const [form, setForm] = useState(emptyForm);
   const [errors, setErrors] = useState({});
@@ -35,9 +45,25 @@ const AdminsRoles = () => {
   const [deactivateTarget, setDeactivateTarget] = useState(null);
   const [editingRolesFor, setEditingRolesFor] = useState(null);
   const [editingRoleSelection, setEditingRoleSelection] = useState([]);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [roleFilter, setRoleFilter] = useState('');
+  const debouncedSearch = useDebounce(search, 400);
+
+  const loadAdmins = useCallback((page = 1) => {
+    dispatch(fetchAdmins({
+      search: debouncedSearch || undefined,
+      status: statusFilter || undefined,
+      role: roleFilter || undefined,
+      page,
+    }));
+  }, [dispatch, debouncedSearch, statusFilter, roleFilter]);
 
   useEffect(() => {
-    dispatch(fetchAdmins());
+    loadAdmins(1);
+  }, [loadAdmins]);
+
+  useEffect(() => {
     dispatch(fetchRoles());
     dispatch(fetchPermissions());
   }, [dispatch]);
@@ -166,42 +192,74 @@ const AdminsRoles = () => {
         {/* ADMINS */}
         <div className="bg-white border border-gray-200 rounded-xl shadow-card p-6">
           <h3 className="text-lg font-bold text-gray-900 mb-4">Admins</h3>
+
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <div className="relative flex-1 min-w-[140px]">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input type="text" placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-7 pr-2 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+            </div>
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-2 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500">
+              <option value="">All statuses</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+            <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}
+              className="px-2 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500">
+              <option value="">All roles</option>
+              {roles.map((r) => <option key={roleName(r)} value={roleName(r)}>{toLabel(roleName(r))}</option>)}
+            </select>
+          </div>
+
           {loading && admins.length === 0 ? (
             <div className="flex justify-center py-8"><Loader2 className="animate-spin text-gray-400" size={20} /></div>
+          ) : admins.length === 0 ? (
+            <p className="text-sm text-gray-400 text-center py-8">No admins match these filters.</p>
           ) : (
             <div className="divide-y divide-gray-100">
-              {admins.map((a) => (
-                <div key={a.id} className="flex items-center justify-between py-3 gap-3">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center font-bold text-xs text-violet-700 uppercase flex-shrink-0">
-                      {a.first_name?.[0]}{a.last_name?.[0]}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate flex items-center gap-1.5">
-                        {a.first_name} {a.last_name}
-                        {a.id === currentAdmin?.id && <span className="text-gray-400 font-normal">(you)</span>}
-                        {a.status === 'inactive' && <Badge tone="neutral" size="sm">Inactive</Badge>}
-                      </p>
-                      <p className="text-xs text-gray-400 truncate">{a.email}</p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {(a.roles || []).map((r) => (
-                          <Badge key={roleName(r)} tone="violet" size="sm">{toLabel(roleName(r))}</Badge>
-                        ))}
+              {admins.map((a) => {
+                const isSelf = a.is_you ?? a.id === currentAdmin?.id;
+                return (
+                  <div key={a.id} className="flex items-center justify-between py-3 gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center font-bold text-xs text-violet-700 uppercase flex-shrink-0">
+                        {a.first_name?.[0]}{a.last_name?.[0]}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate flex items-center gap-1.5">
+                          {a.first_name} {a.last_name}
+                          {isSelf && <span className="text-gray-400 font-normal">(you)</span>}
+                          {a.status === 'inactive' && <Badge tone="neutral" size="sm">Inactive</Badge>}
+                        </p>
+                        <p className="text-xs text-gray-400 truncate">{a.email}</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {(a.roles || []).map((r) => (
+                            <Badge key={roleName(r)} tone="violet" size="sm">{toLabel(roleName(r))}</Badge>
+                          ))}
+                        </div>
                       </div>
                     </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <button onClick={() => openEditRoles(a)} title="Edit roles" className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-gray-50 rounded-md">
+                        <Pencil size={14} />
+                      </button>
+                      <button onClick={() => handleDeactivateToggle(a)} disabled={isSelf} title={isSelf ? "You can't deactivate yourself" : (a.status === 'inactive' ? 'Reactivate' : 'Deactivate')}
+                        className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-gray-50 rounded-md disabled:opacity-30 disabled:hover:bg-transparent disabled:hover:text-gray-400">
+                        <Power size={14} />
+                      </button>
+                      <button onClick={() => handleRemove(a)} disabled={isSelf} title={isSelf ? "You can't remove yourself" : 'Remove'}
+                        className="text-gray-300 hover:text-red-500 text-lg leading-none px-1 disabled:opacity-30 disabled:hover:text-gray-300">×</button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <button onClick={() => openEditRoles(a)} title="Edit roles" className="p-1.5 text-gray-400 hover:text-violet-600 hover:bg-gray-50 rounded-md">
-                      <Pencil size={14} />
-                    </button>
-                    <button onClick={() => handleDeactivateToggle(a)} title={a.status === 'inactive' ? 'Reactivate' : 'Deactivate'}
-                      className="p-1.5 text-gray-400 hover:text-yellow-600 hover:bg-gray-50 rounded-md">
-                      <Power size={14} />
-                    </button>
-                    <button onClick={() => handleRemove(a)} className="text-gray-300 hover:text-red-500 text-lg leading-none px-1">×</button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
+            </div>
+          )}
+
+          {pagination && (
+            <div className="pt-4 mt-1 border-t border-gray-100">
+              <Pagination meta={pagination} onPageChange={loadAdmins} compact />
             </div>
           )}
 

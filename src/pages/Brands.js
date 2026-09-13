@@ -5,13 +5,16 @@ import { Loader2, Plus, Upload } from 'lucide-react';
 import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Pagination from '../components/Pagination';
+import { paginateLocal } from '../utils/paginateLocal';
 
 const emptyDetail = { name: '', slug: '', description: '', logo_url: '' };
 const PER_PAGE = 10;
 
 const Brands = () => {
   const dispatch = useDispatch();
-  const { brands, pagination, loading, mutationLoading, error, message } = useSelector((state) => state.brands);
+  // GET /admin/brands is the flat paginator shape (data IS the array, no meta) — fetch
+  // everything once and paginate client-side instead of relying on server page metadata.
+  const { brands, loading, mutationLoading, error, message } = useSelector((state) => state.brands);
 
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(emptyDetail);
@@ -20,8 +23,10 @@ const Brands = () => {
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    dispatch(fetchBrands({ page: currentPage, per_page: PER_PAGE }));
-  }, [dispatch, currentPage]);
+    dispatch(fetchBrands({ per_page: 500 }));
+  }, [dispatch]);
+
+  const { items: pagedBrands, meta: pagination } = paginateLocal(brands || [], currentPage, PER_PAGE);
 
   useEffect(() => {
     if (!selectedId && brands?.length) setSelectedId(brands[0].id);
@@ -82,7 +87,7 @@ const Brands = () => {
             {loading && brands.length === 0 ? (
               <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" size={20} /></div>
             ) : (
-              brands.map((b) => (
+              pagedBrands.map((b) => (
                 <div
                   key={b.id}
                   onClick={() => setSelectedId(b.id)}

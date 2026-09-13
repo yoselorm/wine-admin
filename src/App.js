@@ -22,6 +22,7 @@ import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
 import Coupons from './pages/Coupons';
 import Shipping from './pages/Shipping';
+import Suburbs from './pages/Suburbs';
 import SalesReports from './pages/SalesReport';
 import SalesReportForm from './pages/SalesReportForm';
 import Intelligence from './pages/Intelligence';
@@ -75,6 +76,7 @@ function App() {
         <Route path="orders/:id" element={<OrderDetail/>} />
         <Route path="coupons" element={<Coupons/>} />
         <Route path="shipping" element={<Shipping/>} />
+        <Route path="suburbs" element={<Suburbs/>} />
 
         <Route path="customers" element={<Customers/>} />
         <Route path="reviews" element={<Reviews/>} />

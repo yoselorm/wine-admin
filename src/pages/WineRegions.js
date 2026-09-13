@@ -12,8 +12,7 @@ import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Switch from '../components/ui/Switch';
 import Pagination from '../components/Pagination';
-import api from '../services/Api';
-import { api_url } from '../utils/config';
+import { paginateLocal } from '../utils/paginateLocal';
 
 const emptyDetail = {
   name: '', slug: '', description: '', type: 'region', parent_id: '',
@@ -23,26 +22,22 @@ const PER_PAGE = 10;
 
 const WineRegions = () => {
   const dispatch = useDispatch();
-  const { regions, pagination, loading, mutationLoading, error, successMessage } = useSelector((s) => s.wineRegions);
+  // GET /admin/wine-regions is the flat paginator shape (data IS the array, no meta) — fetch
+  // everything once. That conveniently also means the Parent Region picker always has every
+  // region available, not just whichever page is on screen.
+  const { regions, loading, mutationLoading, error, successMessage } = useSelector((s) => s.wineRegions);
 
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(emptyDetail);
   const [newName, setNewName] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  // Kept separate from the paginated `regions` list so the Parent Region picker
-  // below always offers every region, not just whichever page is on screen.
-  const [allRegions, setAllRegions] = useState([]);
+
+  const { items: pagedRegions, meta: pagination } = paginateLocal(regions || [], currentPage, PER_PAGE);
 
   useEffect(() => {
-    dispatch(fetchWineRegions({ page: currentPage, per_page: PER_PAGE }));
-  }, [dispatch, currentPage]);
-
-  useEffect(() => {
-    api.get(`${api_url}/v1/admin/wine-regions`, { params: { per_page: 500 } })
-      .then((res) => setAllRegions(res.data?.data || []))
-      .catch(() => {});
-  }, [successMessage]);
+    dispatch(fetchWineRegions({ per_page: 500 }));
+  }, [dispatch]);
 
   useEffect(() => {
     if (!selectedId && regions?.length) setSelectedId(regions[0].id);
@@ -67,9 +62,9 @@ const WineRegions = () => {
       toast.success(successMessage);
       dispatch(clearWineRegionStatus());
       // createWineRegion/updateWineRegion don't merge into local state, so refetch to reflect changes
-      dispatch(fetchWineRegions({ page: currentPage, per_page: PER_PAGE }));
+      dispatch(fetchWineRegions({ per_page: 500 }));
     }
-  }, [error, successMessage, dispatch, currentPage]);
+  }, [error, successMessage, dispatch]);
 
   const handleAddNew = () => {
     if (!newName.trim()) return;
@@ -109,7 +104,7 @@ const WineRegions = () => {
             {loading && regions.length === 0 ? (
               <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" size={20} /></div>
             ) : (
-              regions.map((r) => (
+              pagedRegions.map((r) => (
                 <div
                   key={r.id}
                   onClick={() => setSelectedId(r.id)}
@@ -120,7 +115,7 @@ const WineRegions = () => {
                   <div className="min-w-0">
                     <p className={`text-sm font-semibold truncate ${selectedId === r.id ? 'text-violet-700' : 'text-gray-900'}`}>{r.name}</p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      {r.type}{r.parent_id ? ` · ${allRegions.find((p) => p.id === r.parent_id)?.name || ''}` : ''}
+                      {r.type}{r.parent_id ? ` · ${regions.find((p) => p.id === r.parent_id)?.name || ''}` : ''}
                     </p>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0 pl-2">
@@ -183,7 +178,7 @@ const WineRegions = () => {
                   <select value={detail.parent_id} onChange={(e) => setDetail((p) => ({ ...p, parent_id: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-200 bg-white rounded-md focus:outline-none focus:border-violet-500">
                     <option value="">None</option>
-                    {allRegions.filter((r) => r.id !== selectedId).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    {regions.filter((r) => r.id !== selectedId).map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
                   </select>
                   <p className="text-xs text-gray-400 mt-1">e.g. Stellenbosch sits under South Africa</p>
                 </div>

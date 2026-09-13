@@ -2,16 +2,38 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../services/Api'; 
 import { api_url } from '../utils/config';
 
-// Helper to prepare multi-part form payloads if your product creation includes image files/binary drops
+// Helper to prepare multi-part form payloads when product images include raw file uploads.
+// Laravel expects nested arrays/objects as bracketed keys (images[0][image], images[0][alt_text], ...),
+// so plain values, arrays and objects are recursively flattened into that convention.
+const appendToFormData = (formData, key, value) => {
+  if (value === null || value === undefined) return;
+  if (value instanceof File) {
+    formData.append(key, value);
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => appendToFormData(formData, `${key}[${index}]`, item));
+    return;
+  }
+  if (typeof value === 'object') {
+    Object.keys(value).forEach((nestedKey) => appendToFormData(formData, `${key}[${nestedKey}]`, value[nestedKey]));
+    return;
+  }
+  if (value === '') return;
+  formData.append(key, value);
+};
+
 const prepareFormData = (data) => {
   const formData = new FormData();
-  Object.keys(data).forEach((key) => {
-    if (data[key] !== null && data[key] !== undefined && data[key] !== '') {
-      formData.append(key, data[key]);
-    }
-  });
+  Object.keys(data).forEach((key) => appendToFormData(formData, key, data[key]));
   return formData;
 };
+
+// True only when at least one image entry carries a raw File to upload — that's the one case
+// that needs multipart; everything else (including keeping/reordering existing image_url entries)
+// can go over plain JSON.
+const hasImageUpload = (productData) =>
+  Array.isArray(productData.images) && productData.images.some((img) => img?.image instanceof File);
 
 // 0. Draft a wine card with AI (writes nothing — the draft is reviewed and saved via the update/create endpoints)
 export const draftWineCard = createAsyncThunk(
@@ -85,9 +107,9 @@ export const createProduct = createAsyncThunk(
   async (productData, { rejectWithValue }) => {
     try {
       // Check if image handles are raw files to switch header contexts
-      const hasFile = productData.image_url instanceof File;
+      const hasFile = hasImageUpload(productData);
       const payload = hasFile ? prepareFormData(productData) : productData;
-      
+
       const response = await api.post(`${api_url}/v1/admin/products`, payload, {
         headers: hasFile ? { 'Content-Type': 'multipart/form-data' } : undefined,
       });
@@ -103,16 +125,19 @@ export const updateProduct = createAsyncThunk(
   'products/updateProduct',
   async ({ id, productData }, { rejectWithValue }) => {
     try {
-      const hasFile = productData.image_url instanceof File;
+      const hasFile = hasImageUpload(productData);
       let response;
-      
+
       if (hasFile) {
+        // PHP never populates uploaded files on PUT/PATCH bodies, so multipart updates must go
+        // over POST with Laravel's _method spoof field to still hit the PATCH route/controller.
         const payload = prepareFormData(productData);
+        payload.append('_method', 'PATCH');
         response = await api.post(`${api_url}/v1/admin/products/${id}`, payload, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
       } else {
-        response = await api.put(`${api_url}/v1/admin/products/${id}`, productData);
+        response = await api.patch(`${api_url}/v1/admin/products/${id}`, productData);
       }
       return response.data;
     } catch (err) {

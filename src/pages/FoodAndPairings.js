@@ -24,16 +24,21 @@ import { Loader2, Plus, X } from 'lucide-react';
 import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Button from '../components/ui/Button';
+import Badge from '../components/ui/Badge';
+import Switch from '../components/ui/Switch';
 import Pagination from '../components/Pagination';
+import { paginateLocal } from '../utils/paginateLocal';
 
 const ATTRIBUTE_TYPES = ['flavour', 'texture', 'aroma', 'colour', 'finish', 'pairing'];
 
-const emptyDetail = { name: '', origin: '', description: '', image_url: '' };
+const emptyDetail = { name: '', origin: '', description: '', image_url: '', is_local: false };
 const PER_PAGE = 10;
 
 const FoodAndPairings = () => {
   const dispatch = useDispatch();
-  const { foodDishes: dishes, pagination, loading, mutationLoading, error, successMessage } = useSelector((s) => s.foodDishes);
+  // GET /admin/food-dishes is the flat paginator shape (data IS the array, no meta) — fetch
+  // everything once and paginate the dishes list client-side.
+  const { foodDishes: dishes, loading, mutationLoading, error, successMessage } = useSelector((s) => s.foodDishes);
   const {
     foodAttributes,
     mutationLoading: attrMutationLoading,
@@ -51,17 +56,19 @@ const FoodAndPairings = () => {
 
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(emptyDetail);
-  const [newDish, setNewDish] = useState({ name: '', origin: '' });
+  const [newDish, setNewDish] = useState({ name: '', origin: '', is_local: false });
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [attrDeleteTarget, setAttrDeleteTarget] = useState(null);
   const [pairingDeleteTarget, setPairingDeleteTarget] = useState(null);
   const [attrDraft, setAttrDraft] = useState({ type: 'flavour', value: '5' });
-  const [pairingDraft, setPairingDraft] = useState({ product_id: '', reason: '' });
+  const [pairingDraft, setPairingDraft] = useState({ product_id: '', reason: '', pairing_type: 'international' });
   const [currentPage, setCurrentPage] = useState(1);
 
+  const { items: pagedDishes, meta: pagination } = paginateLocal(dishes || [], currentPage, PER_PAGE);
+
   useEffect(() => {
-    dispatch(fetchFoodDishes({ page: currentPage, per_page: PER_PAGE }));
-  }, [dispatch, currentPage]);
+    dispatch(fetchFoodDishes({ per_page: 500 }));
+  }, [dispatch]);
 
   useEffect(() => {
     dispatch(fetchFoodAttributes({ per_page: 500 }));
@@ -77,7 +84,9 @@ const FoodAndPairings = () => {
   useEffect(() => {
     const dish = dishes?.find((d) => d.id === selectedId);
     if (dish) {
-      setDetail({ name: dish.name || '', origin: dish.origin || '', description: dish.description || '', image_url: dish.image_url || '' });
+      setDetail({ name: dish.name || '', origin: dish.origin || '', description: dish.description || '', image_url: dish.image_url || '', is_local: !!dish.is_local });
+      // Default the pairing type to match the dish, since local dishes are paired with local-type wines far more often.
+      setPairingDraft((p) => ({ ...p, pairing_type: dish.is_local ? 'local' : 'international' }));
     }
     if (products?.length) setPairingDraft((p) => ({ ...p, product_id: p.product_id || products[0].id }));
   }, [selectedId, dishes, products]);
@@ -88,9 +97,9 @@ const FoodAndPairings = () => {
       toast.success(successMessage);
       dispatch(clearFoodDishStatus());
       // createFoodDish/updateFoodDish don't merge into local state, so refetch to reflect changes
-      dispatch(fetchFoodDishes({ page: currentPage, per_page: PER_PAGE }));
+      dispatch(fetchFoodDishes({ per_page: 500 }));
     }
-  }, [error, successMessage, dispatch, currentPage]);
+  }, [error, successMessage, dispatch]);
 
   useEffect(() => {
     if (attrError) { toast.error(attrError); dispatch(clearFoodAttributeStatus()); }
@@ -112,8 +121,8 @@ const FoodAndPairings = () => {
 
   const handleAddDish = () => {
     if (!newDish.name.trim()) return;
-    dispatch(createFoodDish({ name: newDish.name, origin: newDish.origin, description: '', image_url: '' }));
-    setNewDish({ name: '', origin: '' });
+    dispatch(createFoodDish({ name: newDish.name, origin: newDish.origin, is_local: newDish.is_local, description: '', image_url: '' }));
+    setNewDish({ name: '', origin: '', is_local: false });
   };
 
   const handleSaveDish = () => {
@@ -146,6 +155,7 @@ const FoodAndPairings = () => {
       dish_id: selectedId,
       product_id: pairingDraft.product_id,
       reason: pairingDraft.reason,
+      pairing_type: pairingDraft.pairing_type,
       admin_id: admin?.id || admin?.uuid || 'system_admin',
     }));
     setPairingDraft((p) => ({ ...p, reason: '' }));
@@ -181,7 +191,7 @@ const FoodAndPairings = () => {
             ) : dishes.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-10">No dishes yet — add one below.</p>
             ) : (
-              dishes.map((dish) => {
+              pagedDishes.map((dish) => {
                 const count = pairings?.filter((p) => p.dish_id === dish.id).length || 0;
                 return (
                   <div
@@ -193,7 +203,10 @@ const FoodAndPairings = () => {
                   >
                     <div className="min-w-0">
                       <p className={`text-sm font-semibold truncate ${selectedId === dish.id ? 'text-violet-700' : 'text-gray-900'}`}>{dish.name}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">{dish.origin || '—'}</p>
+                      <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5">
+                        {dish.origin || '—'}
+                        <Badge tone={dish.is_local ? 'green' : 'sky'} size="sm">{dish.is_local ? 'Local' : 'Intl'}</Badge>
+                      </p>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0 pl-2">
                       {count > 0 && <span className="text-xs text-gray-400 whitespace-nowrap">{count} pairing{count !== 1 ? 's' : ''}</span>}
@@ -221,6 +234,10 @@ const FoodAndPairings = () => {
               placeholder="Origin, e.g. Ghana (optional)"
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500"
             />
+            <div className="flex items-center justify-between px-0.5">
+              <span className="text-xs text-gray-600">Ghanaian / local dish</span>
+              <Switch checked={newDish.is_local} onChange={(val) => setNewDish((d) => ({ ...d, is_local: val }))} />
+            </div>
             <button onClick={handleAddDish} disabled={mutationLoading}
               className="w-full py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
               {mutationLoading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add Dish
@@ -258,6 +275,10 @@ const FoodAndPairings = () => {
                       <label className="block font-medium text-gray-700 mb-1.5">Origin</label>
                       <input type="text" value={detail.origin} onChange={(e) => setDetail((p) => ({ ...p, origin: e.target.value }))}
                         className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+                    </div>
+                    <div className="col-span-2 flex items-center justify-between px-0.5">
+                      <span className="font-medium text-gray-700">Ghanaian / local dish</span>
+                      <Switch checked={detail.is_local} onChange={(val) => setDetail((p) => ({ ...p, is_local: val }))} />
                     </div>
                     <div className="col-span-2">
                       <label className="block font-medium text-gray-700 mb-1.5">Description</label>
@@ -309,6 +330,11 @@ const FoodAndPairings = () => {
                     className="px-3 py-2 border border-gray-200 rounded-md bg-white text-sm focus:outline-none focus:border-violet-500 min-w-[160px]">
                     {products?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
+                  <select value={pairingDraft.pairing_type} onChange={(e) => setPairingDraft((d) => ({ ...d, pairing_type: e.target.value }))}
+                    className="px-3 py-2 border border-gray-200 rounded-md bg-white text-sm focus:outline-none focus:border-violet-500">
+                    <option value="local">Local</option>
+                    <option value="international">International</option>
+                  </select>
                   <input type="text" placeholder="Why it works (optional)" value={pairingDraft.reason}
                     onChange={(e) => setPairingDraft((d) => ({ ...d, reason: e.target.value }))}
                     className="flex-1 px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-violet-500" />
@@ -320,10 +346,15 @@ const FoodAndPairings = () => {
                   {dishPairings.map((pair) => (
                     <div key={pair.id} className="flex items-start justify-between py-3 first:pt-0">
                       <div>
-                        <p className="font-semibold text-gray-900 text-sm">{products?.find((p) => p.id === pair.product_id)?.name || pair.product_id}</p>
+                        <p className="font-semibold text-gray-900 text-sm flex items-center gap-1.5">
+                          {products?.find((p) => p.id === pair.product_id)?.name || pair.product_id}
+                          {pair.pairing_type && <Badge tone={pair.pairing_type === 'local' ? 'green' : 'sky'} size="sm">{pair.pairing_type}</Badge>}
+                        </p>
                         {pair.reason && <p className="text-sm text-gray-600 mt-0.5">{pair.reason}</p>}
                         <p className="text-xs text-gray-400 italic mt-1">
-                          Added by {pair.admin_name || pair.admin_id} {pair.date ? `· ${pair.date}` : ''}
+                          {/* A null admin_id means this pairing came from the supplier-corpus importer, which will
+                              overwrite it on the next import — a human-authored one never gets clobbered. */}
+                          {pair.admin_id ? `Edited by ${pair.admin_name || 'an admin'}` : 'From supplier notes'}
                         </p>
                       </div>
                       <button onClick={() => setPairingDeleteTarget(pair)} className="text-gray-300 hover:text-red-500 flex-shrink-0">
