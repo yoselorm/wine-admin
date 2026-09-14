@@ -325,9 +325,9 @@ const FoodAndPairings = () => {
 
               <div className="bg-white border border-gray-200 rounded-xl shadow-card p-6">
                 <h3 className="text-lg font-bold text-gray-900 mb-4">Wine Pairings</h3>
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center gap-2 mb-2">
                   <select value={pairingDraft.product_id} onChange={(e) => setPairingDraft((d) => ({ ...d, product_id: e.target.value }))}
-                    className="px-3 py-2 border border-gray-200 rounded-md bg-white text-sm focus:outline-none focus:border-violet-500 min-w-[160px]">
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded-md bg-white text-sm focus:outline-none focus:border-violet-500 min-w-[160px]">
                     {products?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
                   <select value={pairingDraft.pairing_type} onChange={(e) => setPairingDraft((d) => ({ ...d, pairing_type: e.target.value }))}
@@ -335,9 +335,11 @@ const FoodAndPairings = () => {
                     <option value="local">Local</option>
                     <option value="international">International</option>
                   </select>
-                  <input type="text" placeholder="Why it works (optional)" value={pairingDraft.reason}
-                    onChange={(e) => setPairingDraft((d) => ({ ...d, reason: e.target.value }))}
-                    className="flex-1 px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-violet-500" />
+                </div>
+                <textarea rows="2" placeholder="Why it works (optional)" value={pairingDraft.reason}
+                  onChange={(e) => setPairingDraft((d) => ({ ...d, reason: e.target.value }))}
+                  className="w-full px-3 py-2 mb-2 border border-gray-200 rounded-md text-sm resize-none focus:outline-none focus:border-violet-500" />
+                <div className="flex justify-end mb-4">
                   <Button type="button" size="sm" appearance="secondary" disabled={pairingMutationLoading} onClick={handleAddPairing}>
                     {pairingMutationLoading ? <Loader2 size={13} className="animate-spin" /> : 'Add'}
                   </Button>
