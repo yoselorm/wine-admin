@@ -10,10 +10,21 @@ import {
 import { Loader2, Plus, Upload } from 'lucide-react';
 import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import Badge from '../components/ui/Badge';
 import Pagination from '../components/Pagination';
 import { paginateLocal } from '../utils/paginateLocal';
 
-const emptyDetail = { name: '', slug: '', description: '', image_url: '', parent_id: '' };
+// `food_pairing` is a legacy type the API still accepts but food dishes have superseded it —
+// it's intentionally left off this list so it can't be chosen for new/edited categories.
+const CATEGORY_TYPES = [
+  { value: 'product', label: 'Product' },
+  { value: 'wine_type', label: 'Wine Type' },
+  { value: 'grape', label: 'Grape' },
+  { value: 'offer', label: 'Offer' },
+];
+const TYPE_LABEL = Object.fromEntries(CATEGORY_TYPES.map((t) => [t.value, t.label]));
+
+const emptyDetail = { name: '', slug: '', description: '', image_url: '', parent_id: '', type: 'product' };
 const PER_PAGE = 10;
 
 const Categories = () => {
@@ -25,6 +36,8 @@ const Categories = () => {
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(emptyDetail);
   const [newName, setNewName] = useState('');
+  const [newType, setNewType] = useState('product');
+  const [typeFilter, setTypeFilter] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -32,7 +45,12 @@ const Categories = () => {
     dispatch(fetchCategories({ per_page: 500 }));
   }, [dispatch]);
 
-  const { items: pagedCategories, meta: pagination } = paginateLocal(categories || [], currentPage, PER_PAGE);
+  const filteredCategories = (categories || []).filter((c) => !typeFilter || c.type === typeFilter);
+  const { items: pagedCategories, meta: pagination } = paginateLocal(filteredCategories, currentPage, PER_PAGE);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [typeFilter]);
 
   useEffect(() => {
     if (!selectedId && categories?.length) setSelectedId(categories[0].id);
@@ -43,7 +61,7 @@ const Categories = () => {
     if (cat) {
       setDetail({
         name: cat.name || '', slug: cat.slug || '', description: cat.description || '',
-        image_url: cat.image_url || '', parent_id: cat.parent_id || '',
+        image_url: cat.image_url || '', parent_id: cat.parent_id || '', type: cat.type || 'product',
       });
     }
   }, [selectedId, categories]);
@@ -56,7 +74,7 @@ const Categories = () => {
   const handleAddNew = async () => {
     if (!newName.trim()) return;
     const slug = newName.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-');
-    await dispatch(createCategory({ name: newName, slug, description: '', image_url: '', parent_id: '' }));
+    await dispatch(createCategory({ name: newName, slug, description: '', image_url: '', parent_id: '', type: newType }));
     setNewName('');
   };
 
@@ -94,12 +112,19 @@ const Categories = () => {
       <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 mt-4">
         {/* LIST PANEL */}
         <div className="bg-white border border-gray-200 rounded-xl shadow-card flex flex-col max-h-[calc(100vh-220px)]">
-          <div className="px-5 py-4 border-b border-gray-100 flex-shrink-0">
+          <div className="px-5 py-4 border-b border-gray-100 flex-shrink-0 space-y-2">
             <h3 className="text-sm font-bold text-gray-900">All Categories</h3>
+            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
+              className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500">
+              <option value="">All types</option>
+              {CATEGORY_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
             {loading && categories.length === 0 ? (
               <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" size={20} /></div>
+            ) : pagedCategories.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-10">No categories match this filter.</p>
             ) : (
               pagedCategories.map((cat) => (
                 <div
@@ -111,7 +136,10 @@ const Categories = () => {
                 >
                   <div className="min-w-0">
                     <p className={`text-sm font-semibold truncate ${selectedId === cat.id ? 'text-violet-700' : 'text-gray-900'}`}>{cat.name}</p>
-                    <p className="text-xs text-gray-400 mt-0.5">/{cat.slug}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5">
+                      /{cat.slug}
+                      <Badge tone="neutral" size="sm">{TYPE_LABEL[cat.type] || cat.type || 'product'}</Badge>
+                    </p>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0 pl-2">
                     <span className="text-xs text-gray-400 whitespace-nowrap">{cat.product_count ?? 0} products</span>
@@ -133,6 +161,10 @@ const Categories = () => {
               placeholder="Name, e.g. Fortified Wine"
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500"
             />
+            <select value={newType} onChange={(e) => setNewType(e.target.value)}
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500">
+              {CATEGORY_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
             <button onClick={handleAddNew} disabled={mutationLoading}
               className="w-full py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
               {mutationLoading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add Category
@@ -158,6 +190,15 @@ const Categories = () => {
                   <input type="text" value={detail.slug} onChange={(e) => setDetail((p) => ({ ...p, slug: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
                   <p className="text-xs text-gray-400 mt-1">Must be unique · used in URLs</p>
+                </div>
+                <div>
+                  <label className="block font-medium text-gray-700 mb-1.5">Type <span className="text-red-500">*</span></label>
+                  <select value={detail.type} onChange={(e) => setDetail((p) => ({ ...p, type: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 bg-white rounded-md focus:outline-none focus:border-violet-500">
+                    {CATEGORY_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    {detail.type === 'food_pairing' && <option value="food_pairing">Food Pairing (legacy)</option>}
+                  </select>
+                  <p className="text-xs text-gray-400 mt-1">The taxonomy is flat — grapes aren't nested under a colour.</p>
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Parent Category</label>

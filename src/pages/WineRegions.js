@@ -91,7 +91,7 @@ const WineRegions = () => {
     <div className="space-y-2">
       <div>
         <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Wine Regions</h1>
-        <p className="text-sm text-gray-500 mt-1">Countries, regions and subregions form a hierarchy — set the type and an optional parent. Regions in use cannot be deleted.</p>
+        <p className="text-sm text-gray-500 mt-1">Continent, country, region and appellation form a hierarchy — set the type and an optional parent. Regions in use cannot be deleted.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 mt-4">
@@ -168,9 +168,10 @@ const WineRegions = () => {
                   <label className="block font-medium text-gray-700 mb-1.5">Type <span className="text-red-500">*</span></label>
                   <select value={detail.type} onChange={(e) => setDetail((p) => ({ ...p, type: e.target.value }))}
                     className="w-full px-3 py-2 border border-gray-200 bg-white rounded-md focus:outline-none focus:border-violet-500">
+                    <option value="continent">continent</option>
                     <option value="country">country</option>
                     <option value="region">region</option>
-                    <option value="subregion">subregion</option>
+                    <option value="appellation">appellation</option>
                   </select>
                 </div>
                 <div>
