@@ -5,6 +5,7 @@ import { Loader2, Plus, Upload } from 'lucide-react';
 import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Pagination from '../components/Pagination';
+import RichTextEditor from '../components/RichTextEditor';
 import { paginateLocal } from '../utils/paginateLocal';
 
 const emptyDetail = { name: '', slug: '', description: '', logo_url: '' };
@@ -147,9 +148,8 @@ const Brands = () => {
                 </div>
                 <div className="col-span-2">
                   <label className="block font-medium text-gray-700 mb-1.5">Description</label>
-                  <textarea rows="4" value={detail.description} onChange={(e) => setDetail((p) => ({ ...p, description: e.target.value }))}
-                    placeholder="The estate's story, house style, signature wines..."
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none focus:outline-none focus:border-violet-500" />
+                  <RichTextEditor value={detail.description} onChange={(html) => setDetail((p) => ({ ...p, description: html }))}
+                    placeholder="The estate's story, house style, signature wines..." />
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Logo</label>

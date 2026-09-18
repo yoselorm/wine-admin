@@ -6,6 +6,7 @@ import {
   deleteBlogCategory,
   clearCategoryStatus,
 } from "../redux/BlogCategorySlice";
+import { stripHtml } from "../utils/stripHtml";
 import {
   FolderTree,
   Plus,
@@ -137,7 +138,7 @@ const BlogCategories = () => {
                       <div className="font-semibold text-gray-900">{cat.name}</div>
                       <div className="text-xs font-mono text-gray-400 mt-0.5">{cat.slug}</div>
                     </td>
-                    <td className="py-4 px-5 text-gray-500 max-w-xs truncate">{cat.description || "—"}</td>
+                    <td className="py-4 px-5 text-gray-500 max-w-xs truncate">{stripHtml(cat.description) || "—"}</td>
                     <td className="py-4 px-5 font-mono font-bold text-gray-700">{cat.position}</td>
                     <td className="py-4 px-5">
                       <Badge tone={cat.is_published ? 'green' : 'neutral'}>{cat.is_published ? "Published" : "Draft"}</Badge>

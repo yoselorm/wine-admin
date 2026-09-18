@@ -12,6 +12,8 @@ import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
 import Switch from '../components/ui/Switch';
+import RichTextEditor from '../components/RichTextEditor';
+import { stripHtml } from '../utils/stripHtml';
 
 const emptyForm = { code: '', type: 'percent', value: '', expires_at: '', usage_limit: '', is_active: true, description: '' };
 
@@ -115,9 +117,8 @@ const Coupons = () => {
 
             <div>
               <label className="block font-medium text-gray-700 mb-1.5">Description</label>
-              <textarea rows="2" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                placeholder="Internal note — what this coupon is for"
-                className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none focus:outline-none focus:border-violet-500" />
+              <RichTextEditor value={form.description} onChange={(html) => setForm((f) => ({ ...f, description: html }))}
+                placeholder="Internal note — what this coupon is for" />
             </div>
 
             <div className="flex items-center gap-3">
@@ -167,7 +168,7 @@ const Coupons = () => {
                       <td className="py-3.5 px-4 font-semibold text-gray-900">
                         {coupon.type === 'percent' ? `${coupon.value}% off` : `₵${Number(coupon.value).toFixed(0)} off`}
                       </td>
-                      <td className="py-3.5 px-4 text-gray-500 max-w-xs truncate">{coupon.description || '—'}</td>
+                      <td className="py-3.5 px-4 text-gray-500 max-w-xs truncate">{stripHtml(coupon.description) || '—'}</td>
                       <td className="py-3.5 px-4 text-gray-600">{used} / {coupon.usage_limit ?? '∞'}</td>
                       <td className="py-3.5 px-4 text-gray-500">{coupon.expires_at ? coupon.expires_at.slice(0, 10) : '—'}</td>
                       <td className="py-3.5 px-4"><Badge tone={status.tone}>{status.label}</Badge></td>

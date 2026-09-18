@@ -161,9 +161,11 @@ const BlogDetailPage = () => {
                 <h3 className="font-bold text-gray-900 border-b pb-1.5 flex items-center gap-1.5 uppercase tracking-wider text-[10px] text-gray-400">
                   <FileText size={12} /> Body Content
                 </h3>
-                <div className="text-gray-800 leading-relaxed text-[12px] whitespace-pre-line font-sans pt-1">
-                  {blog.content || <span className="text-gray-400 italic">No content has been added to this record.</span>}
-                </div>
+                {blog.content ? (
+                  <div className="rte-display text-gray-800 leading-relaxed text-[12px] font-sans pt-1" dangerouslySetInnerHTML={{ __html: blog.content }} />
+                ) : (
+                  <p className="text-gray-400 italic text-[12px] pt-1">No content has been added to this record.</p>
+                )}
               </div>
 
               {/* External Video Target Alert */}

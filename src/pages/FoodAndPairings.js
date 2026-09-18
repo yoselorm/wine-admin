@@ -27,6 +27,7 @@ import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import Switch from '../components/ui/Switch';
 import Pagination from '../components/Pagination';
+import RichTextEditor from '../components/RichTextEditor';
 import { paginateLocal } from '../utils/paginateLocal';
 
 const ATTRIBUTE_TYPES = ['flavour', 'texture', 'aroma', 'colour', 'finish', 'pairing'];
@@ -282,8 +283,7 @@ const FoodAndPairings = () => {
                     </div>
                     <div className="col-span-2">
                       <label className="block font-medium text-gray-700 mb-1.5">Description</label>
-                      <textarea rows="2" value={detail.description} onChange={(e) => setDetail((p) => ({ ...p, description: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none focus:outline-none focus:border-violet-500" />
+                      <RichTextEditor value={detail.description} onChange={(html) => setDetail((p) => ({ ...p, description: html }))} />
                     </div>
                   </div>
                 </div>

@@ -66,3 +66,34 @@
 .dark .shadow-modal {
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.4), 0 1px 3px 0 rgba(0, 0, 0, 0.3);
 }
+
+/* RichTextEditor (src/components/RichTextEditor.js) — TipTap's ProseMirror content area */
+.rte-content {
+  outline: none;
+  min-height: inherit;
+}
+.rte-content p { margin: 0 0 0.5em; }
+.rte-content p:last-child { margin-bottom: 0; }
+.rte-content ul, .rte-content ol { padding-left: 1.25em; margin: 0 0 0.5em; }
+.rte-content ul { list-style: disc; }
+.rte-content ol { list-style: decimal; }
+.rte-content a { color: #7c3aed; text-decoration: underline; }
+.rte-content strong { font-weight: 700; }
+
+/* TipTap's documented placeholder pattern: the extension stamps data-placeholder onto the
+   first empty paragraph; we just render it. */
+.rte-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+/* Read-only rendering of saved rich text (product/blog/page descriptions) */
+.rte-display p { margin: 0 0 0.75em; }
+.rte-display p:last-child { margin-bottom: 0; }
+.rte-display ul, .rte-display ol { padding-left: 1.25em; margin: 0 0 0.75em; }
+.rte-display ul { list-style: disc; }
+.rte-display ol { list-style: decimal; }
+.rte-display a { color: #7c3aed; text-decoration: underline; }

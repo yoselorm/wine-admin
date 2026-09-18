@@ -23,6 +23,7 @@ import Button from "../components/ui/Button";
 import Switch from "../components/ui/Switch";
 import Pill from "../components/ui/Pill";
 import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
+import RichTextEditor from "../components/RichTextEditor";
 import toast from "../components/Toast";
 
 const WINE_ATTRIBUTE_TYPES = ["bold", "dry", "acidity", "tannic", "soft", "light", "fizzy", "sweet"];
@@ -393,34 +394,29 @@ const ProductForm = () => {
             </div>
             <div className="col-span-2">
               <label className="block font-medium text-gray-700 mb-1.5">Short Description</label>
-              <textarea rows="2" name="short_description" value={formData.short_description || ""} onChange={handleChange}
-                placeholder="One or two lines shown on product cards"
-                className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none focus:outline-none focus:border-violet-500" />
+              <RichTextEditor value={formData.short_description || ""} onChange={(html) => setFormData((p) => ({ ...p, short_description: html }))}
+                placeholder="One or two lines shown on product cards" />
               <p className="text-xs text-gray-400 mt-1">Shown on product cards</p>
             </div>
             <div className="col-span-2">
               <label className="block font-medium text-gray-700 mb-1.5">Description</label>
-              <textarea rows="4" name="description" value={formData.description || ""} onChange={handleChange}
-                placeholder="Tasting notes, story of the estate, vintage conditions..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none focus:outline-none focus:border-violet-500" />
+              <RichTextEditor value={formData.description || ""} onChange={(html) => setFormData((p) => ({ ...p, description: html }))}
+                placeholder="Tasting notes, story of the estate, vintage conditions..." />
             </div>
             <div className="col-span-2">
               <label className="block font-medium text-gray-700 mb-1.5">Pairing Notes</label>
-              <textarea rows="2" name="pairing_notes" value={formData.pairing_notes || ""} onChange={handleChange}
-                placeholder="International food pairing suggestions..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none focus:outline-none focus:border-violet-500" />
+              <RichTextEditor value={formData.pairing_notes || ""} onChange={(html) => setFormData((p) => ({ ...p, pairing_notes: html }))}
+                placeholder="International food pairing suggestions..." />
             </div>
             <div className="col-span-2">
               <label className="block font-medium text-gray-700 mb-1.5">Local Pairing Notes (Ghana)</label>
-              <textarea rows="2" name="local_pairing_notes" value={formData.local_pairing_notes || ""} onChange={handleChange}
-                placeholder="How this wine works with Ghanaian dishes..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none focus:outline-none focus:border-violet-500" />
+              <RichTextEditor value={formData.local_pairing_notes || ""} onChange={(html) => setFormData((p) => ({ ...p, local_pairing_notes: html }))}
+                placeholder="How this wine works with Ghanaian dishes..." />
             </div>
             <div className="col-span-2">
               <label className="block font-medium text-gray-700 mb-1.5">Producer Notes</label>
-              <textarea rows="2" name="producer_notes" value={formData.producer_notes || ""} onChange={handleChange}
-                placeholder="A line or two about the estate/producer..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none focus:outline-none focus:border-violet-500" />
+              <RichTextEditor value={formData.producer_notes || ""} onChange={(html) => setFormData((p) => ({ ...p, producer_notes: html }))}
+                placeholder="A line or two about the estate/producer..." />
             </div>
           </div>
         </Card>

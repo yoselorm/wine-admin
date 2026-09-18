@@ -12,6 +12,7 @@ import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Switch from '../components/ui/Switch';
 import Pagination from '../components/Pagination';
+import RichTextEditor from '../components/RichTextEditor';
 import { paginateLocal } from '../utils/paginateLocal';
 
 const emptyDetail = {
@@ -197,9 +198,8 @@ const WineRegions = () => {
                 </div>
                 <div className="col-span-2">
                   <label className="block font-medium text-gray-700 mb-1.5">Description</label>
-                  <textarea rows="3" value={detail.description} onChange={(e) => setDetail((p) => ({ ...p, description: e.target.value }))}
-                    placeholder="Climate, typical styles, what makes it distinctive..."
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md resize-none focus:outline-none focus:border-violet-500" />
+                  <RichTextEditor value={detail.description} onChange={(html) => setDetail((p) => ({ ...p, description: html }))}
+                    placeholder="Climate, typical styles, what makes it distinctive..." />
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Flag</label>

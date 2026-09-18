@@ -5,6 +5,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { fetchBlogCategories, createBlogCategory, updateBlogCategory, clearCategoryStatus } from '../redux/BlogCategorySlice';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import RichTextEditor from '../components/RichTextEditor';
 import toast from '../components/Toast';
 
 const emptyForm = {
@@ -101,8 +102,7 @@ const BlogCategoryForm = () => {
             </div>
             <div>
               <label className="block font-semibold text-gray-700 mb-1">Description</label>
-              <textarea name="description" rows="2" value={formData.description} onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500 resize-none" />
+              <RichTextEditor value={formData.description} onChange={(html) => setFormData((p) => ({ ...p, description: html }))} />
             </div>
             <div>
               <label className="block font-semibold text-gray-700 mb-1">Image URL</label>

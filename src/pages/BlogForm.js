@@ -10,6 +10,7 @@ import Button from '../components/ui/Button';
 import Switch from '../components/ui/Switch';
 import Pill from '../components/ui/Pill';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import RichTextEditor from '../components/RichTextEditor';
 import toast from '../components/Toast';
 
 const emptyForm = {
@@ -163,8 +164,8 @@ const BlogForm = () => {
               </div>
               <div>
                 <label className="block font-medium text-gray-700 mb-1.5">Content</label>
-                <textarea rows="10" name="content" value={formData.content} onChange={handleInputChange}
-                  placeholder="The full post..." className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+                <RichTextEditor value={formData.content} onChange={(html) => setFormData((p) => ({ ...p, content: html }))}
+                  placeholder="The full post..." minHeight={280} />
               </div>
             </div>
           </Card>

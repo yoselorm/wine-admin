@@ -317,18 +317,24 @@ const ProductDetailPage = () => {
                 <h4 className="font-bold text-gray-400 text-[10px] uppercase tracking-wider flex items-center gap-1 mb-1.5">
                   <Eye size={12}/> Short Teaser Description
                 </h4>
-                <p className="text-gray-700 bg-gray-50/70 border border-gray-100 p-2.5 rounded-lg leading-relaxed">
-                  {product.short_description || <span className="text-gray-400 italic">No short description written.</span>}
-                </p>
+                {product.short_description ? (
+                  <div className="rte-display text-gray-700 bg-gray-50/70 border border-gray-100 p-2.5 rounded-lg leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: product.short_description }} />
+                ) : (
+                  <p className="text-gray-400 italic bg-gray-50/70 border border-gray-100 p-2.5 rounded-lg">No short description written.</p>
+                )}
               </div>
 
               <div>
                 <h4 className="font-bold text-gray-400 text-[10px] uppercase tracking-wider flex items-center gap-1 mb-1.5">
                   <FileText size={12}/> Master Presentation Description
                 </h4>
-                <p className="text-gray-700 bg-gray-50/70 border border-gray-100 p-3 rounded-lg whitespace-pre-line leading-relaxed">
-                  {product.description || <span className="text-gray-400 italic">No main descriptive record added.</span>}
-                </p>
+                {product.description ? (
+                  <div className="rte-display text-gray-700 bg-gray-50/70 border border-gray-100 p-3 rounded-lg leading-relaxed"
+                    dangerouslySetInnerHTML={{ __html: product.description }} />
+                ) : (
+                  <p className="text-gray-400 italic bg-gray-50/70 border border-gray-100 p-3 rounded-lg">No main descriptive record added.</p>
+                )}
               </div>
             </div>
 

@@ -5,6 +5,7 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { fetchPages, createPage, updatePage, clearErrors } from '../redux/PagesSlice';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
+import RichTextEditor from '../components/RichTextEditor';
 import toast from '../components/Toast';
 
 const emptyForm = { title: '', slug: '', content: '', is_published: false, meta_title: '', meta_keywords: '', meta_description: '' };
@@ -109,8 +110,8 @@ const SitePageForm = () => {
             </div>
             <div>
               <label className="block font-semibold text-gray-700 mb-1">Body Content</label>
-              <textarea name="content" rows="8" value={formData.content} onChange={handleChange}
-                placeholder="Enter HTML or plain text content..." className="w-full px-3 py-2 border border-gray-200 rounded-md resize-y focus:outline-none focus:border-violet-500" />
+              <RichTextEditor value={formData.content} onChange={(html) => setFormData((p) => ({ ...p, content: html }))}
+                placeholder="The page's body content..." />
             </div>
           </div>
         </Card>
