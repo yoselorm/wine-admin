@@ -23,6 +23,7 @@ import activityReducer from './redux/ActivitySlice';
 import reviewReducer from './redux/ReviewSlice';
 import customerReducer from './redux/CustomerSlice';
 import suburbReducer from './redux/SuburbSlice';
+import sommelierReducer from './redux/SommelierSlice';
 
 const store = configureStore({
   reducer: {
@@ -50,6 +51,7 @@ const store = configureStore({
     reviews: reviewReducer,
     customers: customerReducer,
     suburbs: suburbReducer,
+    sommelier: sommelierReducer,
   },
 });
 

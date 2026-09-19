@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Plus, Trash, Loader2, UploadCloud, X, Search, Sparkles } from "lucide-react";
+import { ArrowLeft, Plus, Trash, Loader2, UploadCloud, X, Search, Sparkles, Eye } from "lucide-react";
 
 import {
   fetchProductById,
@@ -9,9 +9,11 @@ import {
   updateProduct,
   deleteProduct,
   draftWineCard,
+  previewProduct,
   clearProductStatus,
   clearCurrentProduct,
   clearDraftError,
+  clearPreview,
 } from "../redux/ProductSlice";
 import { fetchBrands } from "../redux/BrandSlice";
 import { fetchCategories } from "../redux/CategorySlice";
@@ -23,6 +25,7 @@ import Button from "../components/ui/Button";
 import Switch from "../components/ui/Switch";
 import Pill from "../components/ui/Pill";
 import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
+import ProductPreviewModal from "../components/ProductPreviewModal";
 import RichTextEditor from "../components/RichTextEditor";
 import toast from "../components/Toast";
 
@@ -84,7 +87,10 @@ const ProductForm = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
 
-  const { currentProduct, loading, mutationLoading, draftLoading, draftError, error, successMessage } = useSelector((s) => s.products);
+  const {
+    currentProduct, loading, mutationLoading, draftLoading, draftError, error, successMessage,
+    previewData, previewMessage, previewLoading, previewError,
+  } = useSelector((s) => s.products);
   const { brands } = useSelector((state) => state.brands || { items: [] });
   const { categories } = useSelector((state) => state.categories || { items: [] });
   const { regions } = useSelector((state) => state.wineRegions || { items: [] });
@@ -97,6 +103,7 @@ const ProductForm = () => {
   const [attrDraft, setAttrDraft] = useState({ type: "bold", value: "5" });
   const [pairingDraft, setPairingDraft] = useState({ dish_id: "", reason: "" });
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [aiInput, setAiInput] = useState(initialDraftInput);
   const [showAiPanel, setShowAiPanel] = useState(false);
 
@@ -275,6 +282,17 @@ const ProductForm = () => {
     navigate("/dashboard/products");
   };
 
+  // Only previews a saved product — save first, then preview, then publish.
+  const handlePreview = () => {
+    setPreviewModalOpen(true);
+    dispatch(previewProduct(id));
+  };
+
+  const handleClosePreview = () => {
+    setPreviewModalOpen(false);
+    dispatch(clearPreview());
+  };
+
   const filteredRegions = regions?.filter((r) => r.name.toLowerCase().includes(regionSearch.toLowerCase())) || [];
   const filteredBlogs = blogs?.filter((b) => b.title.toLowerCase().includes(blogSearch.toLowerCase())) || [];
 
@@ -302,7 +320,10 @@ const ProductForm = () => {
         </h1>
         <div className="flex items-center gap-3">
           {isEditing && (
-            <Button type="button" appearance="danger-outline" onClick={() => setDeleteModalOpen(true)}>Delete</Button>
+            <>
+              <Button type="button" appearance="danger-outline" onClick={() => setDeleteModalOpen(true)}>Delete</Button>
+              <Button type="button" appearance="secondary" icon={Eye} onClick={handlePreview}>Preview</Button>
+            </>
           )}
           <Button type="button" appearance="secondary" onClick={() => navigate("/dashboard/products")}>Cancel</Button>
           <Button type="submit" form="product-form" disabled={mutationLoading}>
@@ -652,6 +673,15 @@ const ProductForm = () => {
         onConfirm={handleDelete}
         title="Delete Product"
         message={`Are you sure you want to remove "${formData.name}" from the catalog? This will remove all associated variants and history.`}
+      />
+
+      <ProductPreviewModal
+        isOpen={previewModalOpen}
+        onClose={handleClosePreview}
+        loading={previewLoading}
+        error={previewError}
+        message={previewMessage}
+        product={previewData}
       />
     </div>
   );

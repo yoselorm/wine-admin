@@ -26,6 +26,7 @@ import Suburbs from './pages/Suburbs';
 import SalesReports from './pages/SalesReport';
 import SalesReportForm from './pages/SalesReportForm';
 import Intelligence from './pages/Intelligence';
+import SommelierTester from './pages/SommelierTester';
 import AdminPages from './pages/AdminPages';
 import ProductDetailPage from './pages/ProductDetails';
 import ProductForm from './pages/ProductForm';
@@ -61,6 +62,7 @@ function App() {
         {/* These components inject right into the <Outlet /> inside DashboardLayout */}
         <Route index element={<DashboardPage />} />
         <Route path="intelligence" element={<Intelligence/>} />
+        <Route path="sommelier-tester" element={<SommelierTester/>} />
 
         <Route path="products" element={<Products /> } />
         <Route path="products/new" element={<ProductForm /> } />

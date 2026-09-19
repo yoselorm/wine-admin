@@ -7,6 +7,26 @@ import {
 } from 'lucide-react';
 import { fetchProductById } from '../redux/ProductSlice';
 
+// Matches the category types settable on the category form (frontend.md §8/§4.10).
+const CATEGORY_TYPE_ORDER = ['wine_type', 'grape', 'product', 'offer'];
+const CATEGORY_TYPE_LABEL = {
+  wine_type: 'Wine Type',
+  grape: 'Grape',
+  product: 'Product',
+  offer: 'Offer',
+};
+
+const groupCategoriesByType = (categories) => {
+  const groups = {};
+  (categories || []).forEach((c) => {
+    const type = c.type || 'product';
+    if (!groups[type]) groups[type] = [];
+    groups[type].push(c);
+  });
+  const orderedTypes = [...CATEGORY_TYPE_ORDER, ...Object.keys(groups).filter((t) => !CATEGORY_TYPE_ORDER.includes(t))];
+  return orderedTypes.filter((t) => groups[t]?.length).map((type) => ({ type, categories: groups[type] }));
+};
+
 const ProductDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -259,11 +279,24 @@ const ProductDetailPage = () => {
 
               <div>
                 <span className="block text-gray-400 font-medium mb-1">Assigned Categories</span>
-                <div className="flex flex-wrap gap-1">
-                  {product.categories?.map((c) => (
-                    <span key={c.id} className="bg-gray-900 text-white px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase">{c.name}</span>
-                  )) || <span className="text-gray-400 italic">None linked</span>}
-                </div>
+                {product.categories?.length > 0 ? (
+                  <div className="space-y-2">
+                    {groupCategoriesByType(product.categories).map(({ type, categories }) => (
+                      <div key={type} className="flex items-start gap-2">
+                        <span className="text-gray-400 text-[10px] font-bold uppercase tracking-wide w-16 flex-shrink-0 pt-1">
+                          {CATEGORY_TYPE_LABEL[type] || type}
+                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          {categories.map((c) => (
+                            <span key={c.id} className="bg-gray-900 text-white px-2 py-0.5 rounded text-[10px] font-bold tracking-wide uppercase">{c.name}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-gray-400 italic">None linked</span>
+                )}
               </div>
             </div>
 

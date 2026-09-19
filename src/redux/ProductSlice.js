@@ -159,6 +159,20 @@ export const deleteProduct = createAsyncThunk(
   }
 );
 
+// 6. Preview Product (GET) - Shows exactly what the public product page returns, published or not.
+// Only works on a saved product, so the flow is save (unpublished) -> preview -> publish.
+export const previewProduct = createAsyncThunk(
+  'products/previewProduct',
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`${api_url}/v1/admin/products/${id}/preview`);
+      return response.data; // { message: "Preview only..." | "Live on the storefront.", data: {...} }
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || 'Failed to load product preview');
+    }
+  }
+);
+
 const productSlice = createSlice({
   name: 'products',
   initialState: {
@@ -171,6 +185,10 @@ const productSlice = createSlice({
     draftError: null,
     error: null,
     successMessage: null,
+    previewData: null,
+    previewMessage: null,
+    previewLoading: false,
+    previewError: null,
   },
   reducers: {
     clearProductStatus: (state) => {
@@ -182,7 +200,12 @@ const productSlice = createSlice({
     },
     clearDraftError: (state) => {
       state.draftError = null;
-    }
+    },
+    clearPreview: (state) => {
+      state.previewData = null;
+      state.previewMessage = null;
+      state.previewError = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -279,9 +302,24 @@ const productSlice = createSlice({
       .addCase(deleteProduct.rejected, (state, action) => {
         state.mutationLoading = false;
         state.error = action.payload;
+      })
+
+      /* Preview Cases */
+      .addCase(previewProduct.pending, (state) => {
+        state.previewLoading = true;
+        state.previewError = null;
+      })
+      .addCase(previewProduct.fulfilled, (state, action) => {
+        state.previewLoading = false;
+        state.previewData = action.payload?.data || null;
+        state.previewMessage = action.payload?.message || null;
+      })
+      .addCase(previewProduct.rejected, (state, action) => {
+        state.previewLoading = false;
+        state.previewError = action.payload;
       });
   },
 });
 
-export const { clearProductStatus, clearCurrentProduct, clearDraftError } = productSlice.actions;
+export const { clearProductStatus, clearCurrentProduct, clearDraftError, clearPreview } = productSlice.actions;
 export default productSlice.reducer;

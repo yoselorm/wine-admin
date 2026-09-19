@@ -17,6 +17,7 @@ import {
   ShieldCheck,
   History,
   MapPin,
+  Bot,
 } from 'lucide-react';
 
 export const groupedSidebarLinks = [
@@ -25,6 +26,7 @@ export const groupedSidebarLinks = [
     items: [
       { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, permission: null, end: true },
       { name: 'Intelligence', path: '/dashboard/intelligence', icon: BrainCircuit, permission: 'view-analytics' },
+      { name: 'Sommelier Tester', path: '/dashboard/sommelier-tester', icon: Bot, permission: 'view-analytics' },
     ],
   },
   {
