@@ -24,6 +24,8 @@ import reviewReducer from './redux/ReviewSlice';
 import customerReducer from './redux/CustomerSlice';
 import suburbReducer from './redux/SuburbSlice';
 import sommelierReducer from './redux/SommelierSlice';
+import quizAdminReducer from './redux/QuizAdminSlice';
+import insightsReducer from './redux/InsightsSlice';
 
 const store = configureStore({
   reducer: {
@@ -52,6 +54,8 @@ const store = configureStore({
     customers: customerReducer,
     suburbs: suburbReducer,
     sommelier: sommelierReducer,
+    quizAdmin: quizAdminReducer,
+    insights: insightsReducer,
   },
 });
 

@@ -164,7 +164,7 @@ const SommelierTester = () => {
                             <div key={p.id} className="border border-gray-100 rounded-md px-2 py-1.5 flex items-center gap-2">
                               {p.primary_image?.image_url ? (
                                 <img src={p.primary_image.image_url} alt={p.primary_image.alt_text || p.name}
-                                  className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                                  className="w-8 h-8 rounded object-contain flex-shrink-0" />
                               ) : (
                                 <div className="w-8 h-8 rounded bg-gray-50 border border-gray-100 flex-shrink-0" />
                               )}

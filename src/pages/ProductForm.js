@@ -32,6 +32,16 @@ import toast from "../components/Toast";
 const WINE_ATTRIBUTE_TYPES = ["bold", "dry", "acidity", "tannic", "soft", "light", "fizzy", "sweet"];
 const WINE_COLOURS = ["Red", "White", "Rosé", "Sparkling", "Dessert"];
 
+// Matches the types settable on the category form (frontend.md §8/§4.10) — pick a type first,
+// then choose from just that type's categories, so a 60-grape list doesn't bury the 4 colours.
+const CATEGORY_TYPES = [
+  { value: "wine_type", label: "Wine Type" },
+  { value: "grape", label: "Grape" },
+  { value: "product", label: "Product" },
+  { value: "offer", label: "Offer" },
+];
+const CATEGORY_TYPE_LABEL = Object.fromEntries(CATEGORY_TYPES.map((t) => [t.value, t.label]));
+
 const initialFormState = {
   name: "",
   sku: "",
@@ -98,6 +108,7 @@ const ProductForm = () => {
   const { foodDishes: dishes } = useSelector((state) => state.foodDishes || { items: [] });
 
   const [formData, setFormData] = useState(initialFormState);
+  const [categoryTypeFilter, setCategoryTypeFilter] = useState("wine_type");
   const [regionSearch, setRegionSearch] = useState("");
   const [blogSearch, setBlogSearch] = useState("");
   const [attrDraft, setAttrDraft] = useState({ type: "bold", value: "5" });
@@ -295,6 +306,8 @@ const ProductForm = () => {
 
   const filteredRegions = regions?.filter((r) => r.name.toLowerCase().includes(regionSearch.toLowerCase())) || [];
   const filteredBlogs = blogs?.filter((b) => b.title.toLowerCase().includes(blogSearch.toLowerCase())) || [];
+  const categoriesByType = categories?.filter((c) => (c.type || "product") === categoryTypeFilter) || [];
+  const selectedCategories = categories?.filter((c) => formData.category_ids.includes(c.id)) || [];
 
   if (isEditing && loading && !currentProduct) {
     return (
@@ -446,12 +459,49 @@ const ProductForm = () => {
           <div className="space-y-5 text-sm">
             <div>
               <label className="block font-medium text-gray-700 mb-2">Categories <span className="text-red-500">*</span></label>
+
+              {selectedCategories.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-3 pb-3 border-b border-gray-100">
+                  {selectedCategories.map((c) => (
+                    <button key={c.id} type="button" onClick={() => toggleSelection("category_ids", c.id)}
+                      className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 text-xs font-medium bg-violet-50 text-violet-700 border border-violet-100 rounded-full hover:bg-violet-100">
+                      <span className="text-[10px] text-violet-400 uppercase font-bold">{CATEGORY_TYPE_LABEL[c.type] || c.type}</span>
+                      {c.name}
+                      <X size={11} />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-1.5 mb-2.5">
+                {CATEGORY_TYPES.map((t) => {
+                  const count = selectedCategories.filter((c) => (c.type || "product") === t.value).length;
+                  return (
+                    <button key={t.value} type="button" onClick={() => setCategoryTypeFilter(t.value)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-colors ${
+                        categoryTypeFilter === t.value ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                      }`}>
+                      {t.label}
+                      {count > 0 && (
+                        <span className={`text-[10px] rounded-full w-4 h-4 flex items-center justify-center ${
+                          categoryTypeFilter === t.value ? "bg-white/20" : "bg-violet-100 text-violet-600"
+                        }`}>{count}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
               <div className="flex flex-wrap gap-2">
-                {categories?.map((c) => (
-                  <Pill key={c.id} active={formData.category_ids.includes(c.id)} onClick={() => toggleSelection("category_ids", c.id)}>
-                    {c.name}
-                  </Pill>
-                ))}
+                {categoriesByType.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic py-1">No {CATEGORY_TYPE_LABEL[categoryTypeFilter].toLowerCase()} categories yet.</p>
+                ) : (
+                  categoriesByType.map((c) => (
+                    <Pill key={c.id} active={formData.category_ids.includes(c.id)} onClick={() => toggleSelection("category_ids", c.id)}>
+                      {c.name}
+                    </Pill>
+                  ))
+                )}
               </div>
             </div>
             <div>
@@ -573,7 +623,7 @@ const ProductForm = () => {
           )}
         </Card>
 
-        <Card title="Wine Attributes">
+        <Card title="Wine Characteristics">
           <p className="text-xs text-gray-400 mb-3">Scored 0–10 · one score per attribute; adding again replaces it.</p>
           <div className="flex items-center gap-2 mb-3">
             <select value={attrDraft.type} onChange={(e) => setAttrDraft((d) => ({ ...d, type: e.target.value }))}

@@ -303,7 +303,7 @@ const ProductDetailPage = () => {
             {/* Custom Specifications Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               
-              {/* Wine Attributes */}
+              {/* Wine Characteristics */}
               <div className="bg-white p-4 rounded-xl border border-gray-200/60 shadow-xs space-y-3">
                 <h3 className="font-bold text-gray-900 border-b pb-1.5 flex items-center gap-1.5">
                   <Wine size={13} className="text-gray-400" />

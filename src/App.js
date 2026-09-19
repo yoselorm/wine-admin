@@ -27,6 +27,9 @@ import SalesReports from './pages/SalesReport';
 import SalesReportForm from './pages/SalesReportForm';
 import Intelligence from './pages/Intelligence';
 import SommelierTester from './pages/SommelierTester';
+import QuizEditor from './pages/QuizEditor';
+import CatalogueExplorer from './pages/CatalogueExplorer';
+import GapsExplorer from './pages/GapsExplorer';
 import AdminPages from './pages/AdminPages';
 import ProductDetailPage from './pages/ProductDetails';
 import ProductForm from './pages/ProductForm';
@@ -63,6 +66,8 @@ function App() {
         <Route index element={<DashboardPage />} />
         <Route path="intelligence" element={<Intelligence/>} />
         <Route path="sommelier-tester" element={<SommelierTester/>} />
+        <Route path="catalogue-explorer" element={<CatalogueExplorer/>} />
+        <Route path="gaps-explorer" element={<GapsExplorer/>} />
 
         <Route path="products" element={<Products /> } />
         <Route path="products/new" element={<ProductForm /> } />
@@ -73,6 +78,7 @@ function App() {
         <Route path="wine-regions" element={<WineRegions/>} />
         <Route path="brands" element={<Brands />} />
         <Route path="food-pairings" element={<FoodAndPairings/>} />
+        <Route path="quiz-editor" element={<QuizEditor/>} />
 
         <Route path="orders" element={<Orders/>} />
         <Route path="orders/:id" element={<OrderDetail/>} />

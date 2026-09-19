@@ -18,6 +18,9 @@ import {
   History,
   MapPin,
   Bot,
+  HelpCircle,
+  Compass,
+  AlertTriangle,
 } from 'lucide-react';
 
 export const groupedSidebarLinks = [
@@ -25,8 +28,10 @@ export const groupedSidebarLinks = [
     category: 'Overview',
     items: [
       { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, permission: null, end: true },
+      { name: 'Catalogue Explorer', path: '/dashboard/catalogue-explorer', icon: Compass, permission: 'view-analytics' },
       { name: 'Intelligence', path: '/dashboard/intelligence', icon: BrainCircuit, permission: 'view-analytics' },
       { name: 'Sommelier Tester', path: '/dashboard/sommelier-tester', icon: Bot, permission: 'view-analytics' },
+      { name: 'Gaps Explorer', path: '/dashboard/gaps-explorer', icon: AlertTriangle, permission: 'view-analytics' },
     ],
   },
   {
@@ -38,6 +43,7 @@ export const groupedSidebarLinks = [
       { name: 'Wine Regions', path: '/dashboard/wine-regions', icon: Globe, permission: 'manage-wine-regions' },
       { name: 'Brands', path: '/dashboard/brands', icon: Factory, permission: 'manage-brands' },
       { name: 'Food & Pairings', path: '/dashboard/food-pairings', icon: Utensils, permission: 'manage-food-dishes' },
+      { name: 'Quiz Editor', path: '/dashboard/quiz-editor', icon: HelpCircle, permission: 'manage-products' },
     ],
   },
   {
