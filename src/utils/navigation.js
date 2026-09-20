@@ -17,10 +17,13 @@ import {
   ShieldCheck,
   History,
   MapPin,
-  Bot,
   HelpCircle,
-  Compass,
-  AlertTriangle,
+  BarChart3,
+  Table2,
+  Target,
+  HeartPulse,
+  TrendingUp,
+  Bot,
 } from 'lucide-react';
 
 export const groupedSidebarLinks = [
@@ -28,10 +31,6 @@ export const groupedSidebarLinks = [
     category: 'Overview',
     items: [
       { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard, permission: null, end: true },
-      { name: 'Catalogue Explorer', path: '/dashboard/catalogue-explorer', icon: Compass, permission: 'view-analytics' },
-      { name: 'Intelligence', path: '/dashboard/intelligence', icon: BrainCircuit, permission: 'view-analytics' },
-      { name: 'Sommelier Tester', path: '/dashboard/sommelier-tester', icon: Bot, permission: 'view-analytics' },
-      { name: 'Gaps Explorer', path: '/dashboard/gaps-explorer', icon: AlertTriangle, permission: 'view-analytics' },
     ],
   },
   {
@@ -44,6 +43,18 @@ export const groupedSidebarLinks = [
       { name: 'Brands', path: '/dashboard/brands', icon: Factory, permission: 'manage-brands' },
       { name: 'Food & Pairings', path: '/dashboard/food-pairings', icon: Utensils, permission: 'manage-food-dishes' },
       { name: 'Quiz Editor', path: '/dashboard/quiz-editor', icon: HelpCircle, permission: 'manage-products' },
+    ],
+  },
+  {
+    category: 'Insights',
+    items: [
+      { name: 'Intelligence', path: '/dashboard/intelligence', icon: BrainCircuit, permission: 'view-analytics' },
+      { name: 'Sommelier Tester', path: '/dashboard/sommelier-tester', icon: Bot, permission: 'view-analytics' },
+      { name: 'Catalogue', path: '/dashboard/insights/catalogue', icon: BarChart3, permission: 'view-analytics' },
+      { name: 'Pairing Matrix', path: '/dashboard/insights/pairing-matrix', icon: Table2, permission: 'view-analytics' },
+      { name: 'Quiz Coverage', path: '/dashboard/insights/quiz-coverage', icon: Target, permission: 'view-analytics' },
+      { name: 'Data Health', path: '/dashboard/insights/data-health', icon: HeartPulse, permission: 'view-analytics' },
+      { name: 'Demand', path: '/dashboard/insights/demand', icon: TrendingUp, permission: 'view-analytics' },
     ],
   },
   {

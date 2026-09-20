@@ -28,8 +28,11 @@ import SalesReportForm from './pages/SalesReportForm';
 import Intelligence from './pages/Intelligence';
 import SommelierTester from './pages/SommelierTester';
 import QuizEditor from './pages/QuizEditor';
-import CatalogueExplorer from './pages/CatalogueExplorer';
-import GapsExplorer from './pages/GapsExplorer';
+import InsightsCatalogue from './pages/InsightsCatalogue';
+import PairingMatrix from './pages/PairingMatrix';
+import QuizCoverage from './pages/QuizCoverage';
+import DataHealth from './pages/DataHealth';
+import Demand from './pages/Demand';
 import AdminPages from './pages/AdminPages';
 import ProductDetailPage from './pages/ProductDetails';
 import ProductForm from './pages/ProductForm';
@@ -66,8 +69,11 @@ function App() {
         <Route index element={<DashboardPage />} />
         <Route path="intelligence" element={<Intelligence/>} />
         <Route path="sommelier-tester" element={<SommelierTester/>} />
-        <Route path="catalogue-explorer" element={<CatalogueExplorer/>} />
-        <Route path="gaps-explorer" element={<GapsExplorer/>} />
+        <Route path="insights/catalogue" element={<InsightsCatalogue/>} />
+        <Route path="insights/pairing-matrix" element={<PairingMatrix/>} />
+        <Route path="insights/quiz-coverage" element={<QuizCoverage/>} />
+        <Route path="insights/data-health" element={<DataHealth/>} />
+        <Route path="insights/demand" element={<Demand/>} />
 
         <Route path="products" element={<Products /> } />
         <Route path="products/new" element={<ProductForm /> } />

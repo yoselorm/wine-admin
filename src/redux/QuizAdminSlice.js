@@ -86,10 +86,10 @@ export const createQuizOption = createAsyncThunk(
 
 export const updateQuizOption = createAsyncThunk(
   'quizAdmin/updateOption',
-  async ({ id, optionData }, { rejectWithValue }) => {
+  async ({ id, questionId, optionData }, { rejectWithValue }) => {
     try {
       const response = await api.put(`${api_url}/v1/admin/quiz/options/${id}`, optionData);
-      return response.data?.data || response.data;
+      return { questionId, option: response.data?.data || response.data };
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || 'Failed to update answer.');
     }
@@ -132,6 +132,7 @@ const quizAdminSlice = createSlice({
     mutationLoading: false,
     error: null,
     successMessage: null,
+    lastCreatedQuestionKey: null,
   },
   reducers: {
     clearQuizAdminStatus: (state) => {
@@ -162,7 +163,10 @@ const quizAdminSlice = createSlice({
       .addCase(createQuizQuestion.fulfilled, (state, action) => {
         state.mutationLoading = false;
         state.successMessage = 'Question added.';
-        if (action.payload) state.questions.push(action.payload);
+        if (action.payload) {
+          state.questions.push({ options: [], ...action.payload });
+          state.lastCreatedQuestionKey = action.payload.key;
+        }
       })
       .addCase(createQuizQuestion.rejected, (state, action) => { state.mutationLoading = false; state.error = action.payload; })
 
@@ -171,7 +175,8 @@ const quizAdminSlice = createSlice({
         state.mutationLoading = false;
         state.successMessage = 'Question saved.';
         const updated = action.payload;
-        if (updated) state.questions = state.questions.map((q) => (q.id === updated.id ? { ...q, ...updated } : q));
+        const target = updated && state.questions.find((q) => q.id === updated.id);
+        if (target) Object.assign(target, updated);
       })
       .addCase(updateQuizQuestion.rejected, (state, action) => { state.mutationLoading = false; state.error = action.payload; })
 
@@ -179,18 +184,21 @@ const quizAdminSlice = createSlice({
       .addCase(deleteQuizQuestion.fulfilled, (state, action) => {
         state.mutationLoading = false;
         state.successMessage = action.payload.message || 'Question retired — it no longer shows to new customers.';
-        state.questions = state.questions.map((q) => (q.id === action.payload.id ? { ...q, is_active: false } : q));
+        const target = state.questions.find((q) => q.id === action.payload.id);
+        if (target) target.is_active = false;
       })
       .addCase(deleteQuizQuestion.rejected, (state, action) => { state.mutationLoading = false; state.error = action.payload; })
 
+      // Only the one question this option belongs to is touched — mapping over every question's
+      // options here (as an earlier version did) recreated every option's identity on every
+      // mutation and reset any component keeping local draft state off an option's effects.
       .addCase(createQuizOption.pending, (state) => { state.mutationLoading = true; state.error = null; })
       .addCase(createQuizOption.fulfilled, (state, action) => {
         state.mutationLoading = false;
         state.successMessage = 'Answer added.';
         const { questionId, option } = action.payload;
-        state.questions = state.questions.map((q) =>
-          q.id === questionId ? { ...q, options: [...(q.options || []), option] } : q
-        );
+        const target = state.questions.find((q) => q.id === questionId);
+        if (target) target.options = [...(target.options || []), option];
       })
       .addCase(createQuizOption.rejected, (state, action) => { state.mutationLoading = false; state.error = action.payload; })
 
@@ -198,13 +206,10 @@ const quizAdminSlice = createSlice({
       .addCase(updateQuizOption.fulfilled, (state, action) => {
         state.mutationLoading = false;
         state.successMessage = 'Answer saved.';
-        const updated = action.payload;
-        if (updated) {
-          state.questions = state.questions.map((q) => ({
-            ...q,
-            options: q.options?.map((o) => (o.id === updated.id ? { ...o, ...updated } : o)),
-          }));
-        }
+        const { questionId, option: updated } = action.payload;
+        const target = state.questions.find((q) => q.id === questionId);
+        const opt = updated && target?.options?.find((o) => o.id === updated.id);
+        if (opt) Object.assign(opt, updated);
       })
       .addCase(updateQuizOption.rejected, (state, action) => { state.mutationLoading = false; state.error = action.payload; })
 
@@ -213,9 +218,8 @@ const quizAdminSlice = createSlice({
         state.mutationLoading = false;
         state.successMessage = 'Answer removed.';
         const { id, questionId } = action.payload;
-        state.questions = state.questions.map((q) =>
-          q.id === questionId ? { ...q, options: q.options?.filter((o) => o.id !== id) } : q
-        );
+        const target = state.questions.find((q) => q.id === questionId);
+        if (target) target.options = target.options?.filter((o) => o.id !== id);
       })
       .addCase(deleteQuizOption.rejected, (state, action) => { state.mutationLoading = false; state.error = action.payload; })
 
@@ -224,11 +228,9 @@ const quizAdminSlice = createSlice({
         state.mutationLoading = false;
         state.successMessage = 'Effects saved.';
         const { optionId, questionId, effects } = action.payload;
-        state.questions = state.questions.map((q) =>
-          q.id === questionId
-            ? { ...q, options: q.options?.map((o) => (o.id === optionId ? { ...o, effects } : o)) }
-            : q
-        );
+        const target = state.questions.find((q) => q.id === questionId);
+        const opt = target?.options?.find((o) => o.id === optionId);
+        if (opt) opt.effects = effects;
       })
       .addCase(updateOptionEffects.rejected, (state, action) => { state.mutationLoading = false; state.error = action.payload; });
   },

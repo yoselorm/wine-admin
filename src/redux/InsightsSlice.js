@@ -44,40 +44,16 @@ export const fetchInsightWines = createAsyncThunk(
   }
 );
 
-// 4b. Pairings, all three views
+// 4b. The dish × colour matrix — fetched once, unfiltered; the page filters client-side
+// (all/local/international/thin/search) the same way the design does.
 export const fetchPairingsMatrix = createAsyncThunk(
   'insights/fetchPairingsMatrix',
-  async (local, { rejectWithValue }) => {
+  async (_, { rejectWithValue }) => {
     try {
-      const params = local === undefined || local === '' ? {} : { local };
-      const response = await api.get(`${base}/pairings/matrix`, { params });
+      const response = await api.get(`${base}/pairings/matrix`);
       return response.data?.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || 'Failed to load the pairings matrix.');
-    }
-  }
-);
-
-export const fetchWinePairings = createAsyncThunk(
-  'insights/fetchWinePairings',
-  async (productId, { rejectWithValue }) => {
-    try {
-      const response = await api.get(`${base}/pairings/wine/${productId}`);
-      return response.data?.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to load pairings for that wine.');
-    }
-  }
-);
-
-export const fetchDishPairings = createAsyncThunk(
-  'insights/fetchDishPairings',
-  async (dishId, { rejectWithValue }) => {
-    try {
-      const response = await api.get(`${base}/pairings/dish/${dishId}`);
-      return response.data?.data;
-    } catch (err) {
-      return rejectWithValue(err.response?.data?.message || 'Failed to load pairings for that dish.');
     }
   }
 );
@@ -160,8 +136,6 @@ const insightsSlice = createSlice({
     facet: { ...emptyResource, dimension: null },
     wines: { items: [], meta: null, loading: false, error: null },
     pairingsMatrix: { ...emptyResource },
-    winePairings: { ...emptyResource },
-    dishPairings: { ...emptyResource },
     coverage: { ...emptyResource },
     simulation: { ...emptyResource },
     gaps: { ...emptyResource },
@@ -179,8 +153,6 @@ const insightsSlice = createSlice({
     addResourceCase(builder, fetchCatalogueInsights, 'catalogue', (data) => ({ data }));
     addResourceCase(builder, fetchFacet, 'facet', (data, state) => ({ data, dimension: data?.dimension ?? state.facet.dimension }));
     addResourceCase(builder, fetchPairingsMatrix, 'pairingsMatrix', (data) => ({ data }));
-    addResourceCase(builder, fetchWinePairings, 'winePairings', (data) => ({ data }));
-    addResourceCase(builder, fetchDishPairings, 'dishPairings', (data) => ({ data }));
     addResourceCase(builder, fetchCoverage, 'coverage', (data) => ({ data }));
     addResourceCase(builder, simulateCoverage, 'simulation', (data) => ({ data }));
     addResourceCase(builder, fetchGaps, 'gaps', (data) => ({ data }));

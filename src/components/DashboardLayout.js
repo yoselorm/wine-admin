@@ -29,7 +29,7 @@ const DashboardLayout = () => {
   };
 
   return (
-    <div className="h-screen bg-gray-100 flex text-gray-900 font-sans antialiased overflow-hidden">
+    <div className="h-screen dashboard-canvas flex text-gray-900 font-sans antialiased overflow-hidden">
 
       {/* 1. DESKTOP SIDEBAR FIXED DOCK */}
       <aside className="hidden md:block w-60 flex-shrink-0 h-screen">

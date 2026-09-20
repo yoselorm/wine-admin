@@ -18,7 +18,7 @@ const DashboardSidebar = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-white border-r border-gray-200">
+    <div className="dashboard-sidebar flex flex-col h-full bg-white border-r border-gray-200">
       {/* Brand */}
       <div className="h-16 flex items-center justify-between px-5 border-b border-gray-100 gap-2.5">
         <div className="flex items-center gap-2.5">

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   fetchQuizQuestions,
@@ -12,10 +12,10 @@ import {
   updateOptionEffects,
   clearQuizAdminStatus,
 } from '../redux/QuizAdminSlice';
+import { fetchCoverage } from '../redux/InsightsSlice';
 import { hasPermission } from '../utils/permissions';
-import { ChevronDown, ChevronUp, ArrowUp, ArrowDown, Plus, Trash, Loader2, MessageCircleQuestion, Filter } from 'lucide-react';
+import { ArrowUp, ArrowDown, Plus, X, Loader2 } from 'lucide-react';
 import toast from '../components/Toast';
-import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
 import Switch from '../components/ui/Switch';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
@@ -27,167 +27,165 @@ const INPUT_TYPES = [
 
 const emptyQuestion = { key: '', prompt: '', help_text: '', input_type: 'single', is_required: true };
 const emptyOption = { value: '', label: '' };
+const pathTail = (path) => path.split('.').pop().replace(/_/g, ' ');
 
-// A single "this answer sets <path> to <value>" row, built from the effect-paths catalogue —
-// never hardcoded, since the fields and their allowed values are defined server-side.
-const EffectEditor = ({ option, effectPaths, canManage, onSave, saving }) => {
-  const [effects, setEffects] = useState(option.effects || []);
+// One "this answer sets <path> to <value>" chip row, built entirely from the effect-paths
+// catalogue (never hardcoded) — adding or removing a chip saves immediately, since a separate
+// "Save Effects" step is what let unsaved additions get silently wiped by an unrelated update
+// elsewhere on the page (every option's identity used to be rebuilt on any single mutation).
+const EffectsRow = ({ option, effectPaths, canManage, saving, onChange }) => {
   const [draftPath, setDraftPath] = useState(effectPaths[0]?.path || '');
+  const pathDef = (path) => effectPaths.find((p) => p.path === path);
+  const values = pathDef(draftPath)?.values || [];
   const [draftValue, setDraftValue] = useState('');
 
   useEffect(() => {
-    setEffects(option.effects || []);
-  }, [option.effects]);
+    const first = values[0];
+    setDraftValue(typeof first === 'object' ? first?.value ?? '' : first ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftPath]);
 
-  useEffect(() => {
-    const pathDef = effectPaths.find((p) => p.path === draftPath);
-    const firstValue = pathDef?.values?.[0];
-    setDraftValue(typeof firstValue === 'object' ? firstValue?.value ?? '' : firstValue ?? '');
-  }, [draftPath, effectPaths]);
-
-  const pathDef = (path) => effectPaths.find((p) => p.path === path);
-  const dirty = JSON.stringify(effects) !== JSON.stringify(option.effects || []);
+  const effects = option.effects || [];
 
   const addEffect = () => {
     if (!draftPath || draftValue === '') return;
-    setEffects((prev) => [...prev.filter((e) => e.path !== draftPath), { path: draftPath, value: draftValue }]);
+    onChange([...effects.filter((e) => e.path !== draftPath), { path: draftPath, value: draftValue }]);
   };
-
-  const removeEffect = (path) => setEffects((prev) => prev.filter((e) => e.path !== path));
+  const removeEffect = (path) => onChange(effects.filter((e) => e.path !== path));
 
   return (
-    <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 space-y-2.5">
-      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Effects</p>
-
+    <div className="ml-8 mt-2.5">
       {effects.length === 0 ? (
-        <p className="text-xs text-gray-400 italic">Purely cosmetic — this answer changes nothing about which wines are shown.</p>
+        <p className="text-xs italic text-gray-400">Cosmetic only — this answer changes nothing</p>
       ) : (
-        <div className="space-y-1.5">
+        <div className="flex flex-wrap gap-1.5">
           {effects.map((e) => {
-            const def = pathDef(e.path);
-            const narrows = def?.narrows_catalogue;
+            const narrows = pathDef(e.path)?.narrows_catalogue;
             return (
-              <div key={e.path} className="flex items-center justify-between gap-2 bg-white border border-gray-200 rounded-md px-2.5 py-1.5">
-                <div className="flex items-center gap-2 min-w-0">
-                  <Badge tone={narrows ? 'violet' : 'sky'} size="sm">{narrows ? 'Filters wines' : 'Wording only'}</Badge>
-                  <span className="text-xs text-gray-700 font-medium truncate">{def?.label || e.path}</span>
-                  <span className="text-xs text-gray-400">→</span>
-                  <span className="text-xs font-semibold text-gray-900">{String(e.value)}</span>
-                </div>
+              <span key={e.path} className={`inline-flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded text-xs font-medium ${
+                narrows ? 'bg-violet-100 text-violet-700' : 'bg-gray-100 text-gray-600'
+              }`}>
+                <span className="opacity-70">{pathTail(e.path)}</span>{String(e.value)}
                 {canManage && (
-                  <button type="button" onClick={() => removeEffect(e.path)} className="text-gray-300 hover:text-red-500 flex-shrink-0">
-                    <Trash size={12} />
+                  <button type="button" onClick={() => removeEffect(e.path)} disabled={saving} className="opacity-70 hover:opacity-100">
+                    <X size={11} />
                   </button>
                 )}
-              </div>
+              </span>
             );
           })}
         </div>
       )}
 
       {canManage && (
-        <>
-          <div className="flex items-center gap-2">
-            <select value={draftPath} onChange={(e) => setDraftPath(e.target.value)}
-              className="flex-1 px-2 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500">
-              {effectPaths.map((p) => (
-                <option key={p.path} value={p.path}>{p.label || p.path} {p.narrows_catalogue ? '(filters)' : '(wording)'}</option>
-              ))}
+        <div className="flex flex-wrap items-center gap-2 mt-2.5">
+          <select value={draftPath} onChange={(e) => setDraftPath(e.target.value)}
+            className="h-[34px] px-2.5 text-xs border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500 w-[230px]">
+            {effectPaths.map((p) => <option key={p.path} value={p.path}>{p.path}</option>)}
+          </select>
+          {values.length > 0 ? (
+            <select value={draftValue} onChange={(e) => setDraftValue(e.target.value)}
+              className="h-[34px] px-2.5 text-xs border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500 w-[150px]">
+              {values.map((v) => {
+                const val = typeof v === 'object' ? v.value : v;
+                const lbl = typeof v === 'object' ? v.label || v.value : v;
+                return <option key={val} value={val}>{lbl}</option>;
+              })}
             </select>
-            {pathDef(draftPath)?.values ? (
-              <select value={draftValue} onChange={(e) => setDraftValue(e.target.value)}
-                className="w-36 px-2 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500">
-                {pathDef(draftPath).values.map((v) => {
-                  const val = typeof v === 'object' ? v.value : v;
-                  const label = typeof v === 'object' ? v.label || v.value : v;
-                  return <option key={val} value={val}>{label}</option>;
-                })}
-              </select>
-            ) : (
-              <input type="text" value={draftValue} onChange={(e) => setDraftValue(e.target.value)}
-                placeholder="Value" className="w-36 px-2 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
-            )}
-            <button type="button" onClick={addEffect} disabled={!draftPath}
-              className="px-2.5 py-1.5 text-xs font-semibold text-gray-700 border border-gray-200 rounded-md hover:bg-white disabled:opacity-50">
-              <Plus size={12} />
-            </button>
-          </div>
-          <div className="flex justify-end">
-            <button type="button" disabled={!dirty || saving} onClick={() => onSave(effects)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-gray-900 rounded-md hover:bg-gray-800 disabled:opacity-40">
-              {saving && <Loader2 size={11} className="animate-spin" />} Save Effects
-            </button>
-          </div>
-        </>
+          ) : (
+            <input value={draftValue} onChange={(e) => setDraftValue(e.target.value)} placeholder="Value"
+              className="h-[34px] px-2.5 text-xs border border-gray-200 rounded-md w-[150px] focus:outline-none focus:border-violet-500" />
+          )}
+          <button type="button" onClick={addEffect} disabled={saving}
+            className="h-[30px] px-3 text-xs font-semibold border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-50">
+            Add Effect
+          </button>
+        </div>
       )}
     </div>
   );
 };
 
-const OptionRow = ({ option, question, effectPaths, canManage, mutationLoading, onDeleteOption }) => {
+const AnswerCard = ({ option, question, effectPaths, canManage, mutationLoading, reach, onRequestDelete }) => {
   const dispatch = useDispatch();
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState({ value: option.value, label: option.label });
+  const [label, setLabel] = useState(option.label);
+  useEffect(() => setLabel(option.label), [option.label]);
 
-  const saveOption = () => {
-    dispatch(updateQuizOption({ id: option.id, optionData: draft }));
-    setEditing(false);
+  const narrows = option.effects?.some((e) => effectPaths.find((p) => p.path === e.path)?.narrows_catalogue);
+  const reachTone = reach == null ? 'neutral' : reach === 0 ? 'red' : 'green';
+  const reachLabel = reach == null ? (narrows ? 'Filters' : 'No filter') : reach === 0 ? 'Reaches 0' : `Reaches ${reach}`;
+
+  const saveLabel = () => {
+    if (label.trim() && label !== option.label) {
+      dispatch(updateQuizOption({ id: option.id, questionId: question.id, optionData: { value: option.value, label } }));
+    }
   };
 
   return (
-    <div className="border border-gray-100 rounded-lg p-3 space-y-2.5">
-      <div className="flex items-center justify-between gap-2">
-        {editing ? (
-          <div className="flex items-center gap-2 flex-1">
-            <input value={draft.value} onChange={(e) => setDraft((d) => ({ ...d, value: e.target.value }))}
-              placeholder="Value" className="w-20 px-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
-            <input value={draft.label} onChange={(e) => setDraft((d) => ({ ...d, label: e.target.value }))}
-              placeholder="Label" className="flex-1 px-2 py-1 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
-            <button onClick={saveOption} className="text-xs font-semibold text-violet-600">Save</button>
-            <button onClick={() => setEditing(false)} className="text-xs text-gray-400">Cancel</button>
-          </div>
-        ) : (
-          <>
-            <div className="min-w-0">
-              <span className="text-xs font-mono text-gray-400 mr-2">{option.value}</span>
-              <span className="text-sm text-gray-800">{option.label}</span>
-            </div>
-            {canManage && (
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <button onClick={() => setEditing(true)} className="text-xs text-gray-400 hover:text-violet-600">Edit</button>
-                <button onClick={() => onDeleteOption(option, question)} className="text-gray-300 hover:text-red-500">
-                  <Trash size={13} />
-                </button>
-              </div>
-            )}
-          </>
+    <div className="border border-gray-200 rounded-lg bg-gray-50 p-3 mb-2.5">
+      <div className="flex items-center gap-2.5">
+        <span className={`w-[22px] h-[22px] rounded flex items-center justify-center text-[11px] font-bold flex-shrink-0 ${
+          narrows ? 'bg-violet-500 text-white' : 'bg-gray-300 text-gray-700'
+        }`}>{option.value}</span>
+        <input value={label} onChange={(e) => setLabel(e.target.value)} onBlur={saveLabel} disabled={!canManage}
+          className="flex-1 min-w-0 h-[34px] px-2.5 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500 disabled:bg-gray-100" />
+        <Badge tone={reachTone} className="flex-shrink-0">{reachLabel}</Badge>
+        {canManage && (
+          <button type="button" onClick={onRequestDelete} disabled={mutationLoading}
+            className="w-[26px] h-[26px] flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-white rounded-md flex-shrink-0">
+            <X size={15} />
+          </button>
         )}
       </div>
 
-      <EffectEditor
+      <EffectsRow
         option={option}
         effectPaths={effectPaths}
         canManage={canManage}
         saving={mutationLoading}
-        onSave={(effects) => dispatch(updateOptionEffects({ optionId: option.id, questionId: question.id, effects }))}
+        onChange={(effects) => dispatch(updateOptionEffects({ optionId: option.id, questionId: question.id, effects }))}
       />
     </div>
   );
 };
 
-const QuestionCard = ({ question, index, total, effectPaths, canManage, mutationLoading, onMove, onRetire }) => {
+const QuestionCard = ({ question, index, total, effectPaths, canManage, mutationLoading, reachByOption, onMove, onRetire, defaultOpen }) => {
   const dispatch = useDispatch();
-  const [expanded, setExpanded] = useState(false);
-  const [editing, setEditing] = useState(false);
+  const [open, setOpen] = useState(!!defaultOpen);
   const [draft, setDraft] = useState({
-    key: question.key, prompt: question.prompt, help_text: question.help_text || '',
-    input_type: question.input_type, is_required: !!question.is_required,
+    prompt: question.prompt, help_text: question.help_text || '', input_type: question.input_type,
   });
-  const [newOption, setNewOption] = useState(emptyOption);
+  useEffect(() => {
+    setDraft({ prompt: question.prompt, help_text: question.help_text || '', input_type: question.input_type });
+  }, [question.prompt, question.help_text, question.input_type]);
 
-  const saveQuestion = () => {
-    dispatch(updateQuizQuestion({ id: question.id, questionData: draft }));
-    setEditing(false);
+  const [newOption, setNewOption] = useState(emptyOption);
+  const [optionToDelete, setOptionToDelete] = useState(null);
+
+  const narrowing = question.options?.some((o) => o.effects?.some((e) => effectPaths.find((p) => p.path === e.path)?.narrows_catalogue));
+  const deadCount = question.options?.filter((o) => {
+    const r = reachByOption[o.label];
+    return o.effects?.length > 0 && r === 0;
+  }).length || 0;
+  const meta = [
+    `${question.options?.length || 0} answer${question.options?.length === 1 ? '' : 's'}`,
+    question.help_text ? 'has help text' : null,
+    deadCount ? `${deadCount} reach no wines` : null,
+  ].filter(Boolean).join(' · ');
+
+  const savePrompt = () => {
+    if (draft.prompt.trim() && draft.prompt !== question.prompt) {
+      dispatch(updateQuizQuestion({ id: question.id, questionData: { prompt: draft.prompt } }));
+    }
+  };
+  const saveHelpText = () => {
+    if (draft.help_text !== (question.help_text || '')) {
+      dispatch(updateQuizQuestion({ id: question.id, questionData: { help_text: draft.help_text } }));
+    }
+  };
+  const changeInputType = (input_type) => {
+    setDraft((d) => ({ ...d, input_type }));
+    dispatch(updateQuizQuestion({ id: question.id, questionData: { input_type } }));
   };
 
   const addOption = () => {
@@ -196,94 +194,92 @@ const QuestionCard = ({ question, index, total, effectPaths, canManage, mutation
     setNewOption(emptyOption);
   };
 
-  const [optionToDelete, setOptionToDelete] = useState(null);
-
   return (
-    <Card padded={false} className={!question.is_active ? 'opacity-60' : ''}>
-      <div className="flex items-center gap-3 px-5 py-4 cursor-pointer" onClick={() => setExpanded((v) => !v)}>
+    <div className={`bg-white border border-gray-200 rounded-xl shadow-card overflow-hidden mb-4 ${!question.is_active ? 'opacity-55' : ''}`}>
+      <div className="flex items-center gap-3 px-4 py-3.5">
         {canManage && (
-          <div className="flex flex-col gap-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-            <button disabled={index === 0} onClick={() => onMove(question, -1)} className="text-gray-300 hover:text-gray-600 disabled:opacity-20">
-              <ArrowUp size={13} />
+          <div className="flex flex-col gap-0.5 flex-shrink-0">
+            <button type="button" disabled={index === 0} onClick={() => onMove(question, -1)}
+              className="w-[22px] h-4 border border-gray-200 rounded text-gray-400 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-30 flex items-center justify-center">
+              <ArrowUp size={9} />
             </button>
-            <button disabled={index === total - 1} onClick={() => onMove(question, 1)} className="text-gray-300 hover:text-gray-600 disabled:opacity-20">
-              <ArrowDown size={13} />
+            <button type="button" disabled={index === total - 1} onClick={() => onMove(question, 1)}
+              className="w-[22px] h-4 border border-gray-200 rounded text-gray-400 hover:bg-gray-50 hover:text-gray-700 disabled:opacity-30 flex items-center justify-center">
+              <ArrowDown size={9} />
             </button>
           </div>
         )}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <p className="text-sm font-bold text-gray-900 truncate">{question.prompt}</p>
-            <Badge tone="neutral" size="sm">{question.key}</Badge>
-            <Badge tone={question.input_type === 'multi' ? 'sky' : 'violet'} size="sm">{question.input_type}</Badge>
-            {!question.is_active && <Badge tone="red" size="sm">Retired</Badge>}
+        <button type="button" onClick={() => setOpen((v) => !v)} className="flex-1 min-w-0 text-left">
+          <div>
+            <span className="text-[11px] font-bold text-gray-400 tracking-wide mr-2">Q{index + 1}</span>
+            <span className="text-sm font-semibold text-gray-900">{question.prompt}</span>
           </div>
-          {question.help_text && <p className="text-xs text-gray-400 mt-0.5 truncate">{question.help_text}</p>}
-        </div>
-        {expanded ? <ChevronUp size={16} className="text-gray-400 flex-shrink-0" /> : <ChevronDown size={16} className="text-gray-400 flex-shrink-0" />}
+          <div className="text-xs text-gray-400 mt-0.5">{meta}</div>
+        </button>
+        <Badge tone={question.input_type === 'multi' ? 'sky' : 'neutral'} className="flex-shrink-0">{question.input_type === 'multi' ? 'Multi' : 'Single'}</Badge>
+        <Badge tone={narrowing ? 'violet' : 'neutral'} className="flex-shrink-0">{narrowing ? 'Filters wines' : 'Wording only'}</Badge>
+        {canManage && question.is_active && (
+          <button type="button" onClick={() => onRetire(question)} title="Retire question"
+            className="w-[26px] h-[26px] flex items-center justify-center text-gray-400 hover:text-red-600 hover:bg-gray-50 rounded-md flex-shrink-0">
+            <X size={16} />
+          </button>
+        )}
       </div>
 
-      {expanded && (
-        <div className="px-5 pb-5 space-y-4 border-t border-gray-100 pt-4">
-          {editing ? (
-            <div className="space-y-2.5 bg-gray-50 border border-gray-100 rounded-lg p-3">
-              <div className="grid grid-cols-2 gap-2">
-                <input value={draft.key} onChange={(e) => setDraft((d) => ({ ...d, key: e.target.value }))}
-                  placeholder="key" className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
-                <select value={draft.input_type} onChange={(e) => setDraft((d) => ({ ...d, input_type: e.target.value }))}
-                  className="px-2.5 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500">
-                  {INPUT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                </select>
-              </div>
-              <input value={draft.prompt} onChange={(e) => setDraft((d) => ({ ...d, prompt: e.target.value }))}
-                placeholder="Prompt" className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
-              <textarea rows="2" value={draft.help_text} onChange={(e) => setDraft((d) => ({ ...d, help_text: e.target.value }))}
-                placeholder="Help text — why a wine shop is asking this"
-                className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
-              <div className="flex items-center justify-between">
-                <Switch checked={draft.is_required} onChange={(v) => setDraft((d) => ({ ...d, is_required: v }))} label="Required" italic />
-                <div className="flex gap-2">
-                  <button onClick={() => setEditing(false)} className="text-xs text-gray-400">Cancel</button>
-                  <button onClick={saveQuestion} disabled={mutationLoading}
-                    className="px-3 py-1.5 text-xs font-semibold text-white bg-gray-900 rounded-md hover:bg-gray-800 disabled:opacity-50">Save</button>
-                </div>
-              </div>
+      {open && (
+        <div className="border-t border-gray-100 p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Key</label>
+              <input value={question.key} readOnly className="w-full h-[36px] px-3 text-sm border border-gray-200 rounded-md bg-gray-50 text-gray-500" />
+              <p className="text-xs text-gray-400 mt-1">Immutable · answers are submitted under this</p>
             </div>
-          ) : canManage && (
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setEditing(true)} className="text-xs font-semibold text-violet-600">Edit question</button>
-              {question.is_active && (
-                <button onClick={() => onRetire(question)} className="text-xs font-semibold text-red-500">Retire question</button>
-              )}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Input Type</label>
+              <select value={draft.input_type} disabled={!canManage} onChange={(e) => changeInputType(e.target.value)}
+                className="w-full h-[38px] px-3 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500 disabled:bg-gray-50">
+                {INPUT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Prompt <span className="text-red-500">*</span></label>
+              <input value={draft.prompt} disabled={!canManage} onChange={(e) => setDraft((d) => ({ ...d, prompt: e.target.value }))} onBlur={savePrompt}
+                className="w-full h-[36px] px-3 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500 disabled:bg-gray-50" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-medium text-gray-700 mb-1.5">Help Text</label>
+              <textarea rows="2" value={draft.help_text} disabled={!canManage} onChange={(e) => setDraft((d) => ({ ...d, help_text: e.target.value }))} onBlur={saveHelpText}
+                placeholder="Why a wine shop is asking this — shown under the prompt"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500 disabled:bg-gray-50" />
+            </div>
+          </div>
+
+          <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Answers</p>
+          {question.options?.map((opt) => (
+            <AnswerCard
+              key={opt.id}
+              option={opt}
+              question={question}
+              effectPaths={effectPaths}
+              canManage={canManage}
+              mutationLoading={mutationLoading}
+              reach={reachByOption[opt.label]}
+              onRequestDelete={() => setOptionToDelete(opt)}
+            />
+          ))}
+
+          {canManage && (
+            <div className="flex items-center gap-2 mt-1">
+              <input value={newOption.value} onChange={(e) => setNewOption((o) => ({ ...o, value: e.target.value }))}
+                placeholder="Value, e.g. E" className="w-24 h-[36px] px-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+              <input value={newOption.label} onChange={(e) => setNewOption((o) => ({ ...o, label: e.target.value }))}
+                placeholder="Label" className="flex-1 h-[36px] px-2.5 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+              <button type="button" onClick={addOption}
+                className="flex items-center gap-1.5 h-[36px] px-3.5 text-sm font-semibold border border-gray-200 rounded-md hover:bg-gray-50">
+                <Plus size={13} /> Add Answer
+              </button>
             </div>
           )}
-
-          <div className="space-y-2.5">
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">Answers</p>
-            {(question.options || []).map((opt) => (
-              <OptionRow
-                key={opt.id}
-                option={opt}
-                question={question}
-                effectPaths={effectPaths}
-                canManage={canManage}
-                mutationLoading={mutationLoading}
-                onDeleteOption={(o, q) => setOptionToDelete({ option: o, question: q })}
-              />
-            ))}
-
-            {canManage && (
-              <div className="flex items-center gap-2 pt-1">
-                <input value={newOption.value} onChange={(e) => setNewOption((o) => ({ ...o, value: e.target.value }))}
-                  placeholder="Value, e.g. E" className="w-24 px-2.5 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
-                <input value={newOption.label} onChange={(e) => setNewOption((o) => ({ ...o, label: e.target.value }))}
-                  placeholder="Label" className="flex-1 px-2.5 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
-                <button onClick={addOption} className="flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50">
-                  <Plus size={12} /> Add
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       )}
 
@@ -292,23 +288,24 @@ const QuestionCard = ({ question, index, total, effectPaths, canManage, mutation
         isDeleting={mutationLoading}
         onClose={() => setOptionToDelete(null)}
         onConfirm={() => {
-          dispatch(deleteQuizOption({ id: optionToDelete.option.id, questionId: optionToDelete.question.id }));
+          dispatch(deleteQuizOption({ id: optionToDelete.id, questionId: question.id }));
           setOptionToDelete(null);
         }}
         title="Remove Answer"
         message={
           question.options?.length <= 1
             ? 'This is the last answer on this question — the server will reject removing it. Add a replacement first.'
-            : `Remove "${optionToDelete?.option?.label}"? Customers who already chose it keep their saved answer.`
+            : `Remove "${optionToDelete?.label}"? Customers who already chose it keep their saved answer.`
         }
       />
-    </Card>
+    </div>
   );
 };
 
 const QuizEditor = () => {
   const dispatch = useDispatch();
-  const { questions, effectPaths, loading, mutationLoading, error, successMessage } = useSelector((s) => s.quizAdmin);
+  const { questions, effectPaths, loading, mutationLoading, error, successMessage, lastCreatedQuestionKey } = useSelector((s) => s.quizAdmin);
+  const { data: coverage } = useSelector((s) => s.insights.coverage);
   const { admin } = useSelector((s) => s.auth);
   const canManage = hasPermission(admin, 'manage-products');
 
@@ -319,6 +316,7 @@ const QuizEditor = () => {
   useEffect(() => {
     dispatch(fetchQuizQuestions());
     dispatch(fetchEffectPaths());
+    dispatch(fetchCoverage());
   }, [dispatch]);
 
   useEffect(() => {
@@ -326,12 +324,23 @@ const QuizEditor = () => {
     if (successMessage) { toast.success(successMessage); dispatch(clearQuizAdminStatus()); }
   }, [error, successMessage, dispatch]);
 
-  const activeQuestions = [...questions].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  const sortedQuestions = [...questions].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
-  // Swap this question's position with its neighbour's — reordering is a PUT with the new position.
+  // reachByOption[question.key][option.label] -> wines reached, cross-referenced from
+  // /insights/coverage so a dead answer shows "Reaches 0" without hardcoding any numbers here.
+  const reachByQuestion = useMemo(() => {
+    const map = {};
+    (coverage?.questions || []).forEach((q) => {
+      map[q.key] = {};
+      (q.options || []).forEach((o) => { map[q.key][o.label] = o.wines; });
+    });
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [coverage]);
+
   const handleMove = (question, direction) => {
-    const idx = activeQuestions.findIndex((q) => q.id === question.id);
-    const neighbour = activeQuestions[idx + direction];
+    const idx = sortedQuestions.findIndex((q) => q.id === question.id);
+    const neighbour = sortedQuestions[idx + direction];
     if (!neighbour) return;
     dispatch(updateQuizQuestion({ id: question.id, questionData: { position: neighbour.position } }));
     dispatch(updateQuizQuestion({ id: neighbour.id, questionData: { position: question.position } }));
@@ -339,52 +348,51 @@ const QuizEditor = () => {
 
   const handleAddQuestion = () => {
     if (!newQuestion.key.trim() || !newQuestion.prompt.trim()) return;
-    dispatch(createQuizQuestion({ ...newQuestion, position: activeQuestions.length + 1 }));
+    const maxPosition = sortedQuestions.reduce((max, q) => Math.max(max, q.position ?? 0), 0);
+    dispatch(createQuizQuestion({ ...newQuestion, position: maxPosition + 1 }));
     setNewQuestion(emptyQuestion);
     setShowAdd(false);
   };
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
+      <div className="flex items-start gap-4 flex-wrap">
+        <div className="flex-1 min-w-[240px]">
           <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Quiz Editor</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Reword the onboarding quiz and control what each answer does. Editing changes what
-            future customers are shown — it never rewrites a profile someone has already saved.
+            The eight-question taste quiz new customers answer. Edits change what <strong>future</strong> customers
+            are shown — saved taste profiles are not rewritten.
           </p>
         </div>
         {canManage && (
           <button onClick={() => setShowAdd((v) => !v)}
-            className="flex items-center gap-1.5 px-3.5 py-2 text-sm font-semibold text-white bg-gray-900 rounded-md hover:bg-gray-800">
+            className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-semibold text-white bg-violet-500 rounded-md hover:bg-violet-600">
             <Plus size={14} /> Add Question
           </button>
         )}
       </div>
 
-      <div className="flex items-start gap-3 bg-violet-50 border border-violet-100 rounded-lg px-4 py-3">
-        <Filter size={15} className="text-violet-500 mt-0.5 flex-shrink-0" />
-        <p className="text-xs text-violet-700">
-          <Badge tone="violet" size="sm" className="mr-1.5">Filters wines</Badge> effects narrow the catalogue a customer is shown.
-          <Badge tone="sky" size="sm" className="mx-1.5">Wording only</Badge> effects just change how the sommelier talks — nothing is excluded.
-        </p>
+      <div className="flex gap-6 flex-wrap">
+        <span className="flex items-center gap-2 text-xs text-gray-500"><i className="w-2 h-2 rounded-full bg-violet-500 inline-block" />Filters wines — narrows what the sommelier can offer</span>
+        <span className="flex items-center gap-2 text-xs text-gray-500"><i className="w-2 h-2 rounded-full bg-gray-300 inline-block" />Wording only — shapes how the sommelier speaks</span>
       </div>
 
       {showAdd && canManage && (
-        <Card title="New Question">
-          <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white border border-gray-200 rounded-xl shadow-card p-5">
+          <h3 className="text-sm font-bold text-gray-900 mb-3">New Question</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input value={newQuestion.key} onChange={(e) => setNewQuestion((q) => ({ ...q, key: e.target.value }))}
-              placeholder="key, e.g. texture" className="px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+              placeholder="key, e.g. texture" className="h-[38px] px-3 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
             <select value={newQuestion.input_type} onChange={(e) => setNewQuestion((q) => ({ ...q, input_type: e.target.value }))}
-              className="px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500">
+              className="h-[38px] px-3 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500">
               {INPUT_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
             <input value={newQuestion.prompt} onChange={(e) => setNewQuestion((q) => ({ ...q, prompt: e.target.value }))}
-              placeholder="Prompt shown to the customer" className="col-span-2 px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+              placeholder="Prompt shown to the customer" className="sm:col-span-2 h-[38px] px-3 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
             <textarea rows="2" value={newQuestion.help_text} onChange={(e) => setNewQuestion((q) => ({ ...q, help_text: e.target.value }))}
               placeholder="Help text (optional) — why a wine shop is asking this"
-              className="col-span-2 px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
-            <div className="col-span-2 flex items-center justify-between">
+              className="sm:col-span-2 px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+            <div className="sm:col-span-2 flex items-center justify-between">
               <Switch checked={newQuestion.is_required} onChange={(v) => setNewQuestion((q) => ({ ...q, is_required: v }))} label="Required" italic />
               <button onClick={handleAddQuestion} disabled={mutationLoading}
                 className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-gray-900 rounded-md hover:bg-gray-800 disabled:opacity-50">
@@ -392,32 +400,27 @@ const QuizEditor = () => {
               </button>
             </div>
           </div>
-          <p className="text-xs text-gray-400 mt-2">New questions start with no answers — add them once it's saved.</p>
-        </Card>
+          <p className="text-xs text-gray-400 mt-2">New questions start with no answers — add them once it's saved; it opens automatically below.</p>
+        </div>
       )}
 
       {loading && questions.length === 0 ? (
         <div className="flex justify-center py-16"><Loader2 className="animate-spin text-gray-400" size={22} /></div>
-      ) : activeQuestions.length === 0 ? (
-        <Card>
-          <div className="text-center py-10 text-gray-400">
-            <MessageCircleQuestion size={22} className="mx-auto mb-2 text-gray-300" />
-            <p className="text-sm">No quiz questions yet.</p>
-          </div>
-        </Card>
       ) : (
-        <div className="space-y-3">
-          {activeQuestions.map((q, i) => (
+        <div>
+          {sortedQuestions.map((q, i) => (
             <QuestionCard
               key={q.id}
               question={q}
               index={i}
-              total={activeQuestions.length}
+              total={sortedQuestions.length}
               effectPaths={effectPaths}
               canManage={canManage}
               mutationLoading={mutationLoading}
+              reachByOption={reachByQuestion[q.key] || {}}
               onMove={handleMove}
               onRetire={(question) => setRetireTarget(question)}
+              defaultOpen={q.key === lastCreatedQuestionKey}
             />
           ))}
         </div>
