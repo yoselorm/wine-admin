@@ -499,8 +499,8 @@ const ProductForm = () => {
               <p className="text-xs text-gray-400 mt-1">Auto-generated from name · used in the product URL</p>
             </div>
             <div>
-              <label className="block font-medium text-gray-700 mb-1.5">SKU <span className="text-red-500">*</span></label>
-              <input type="text" required name="sku" value={formData.sku} onChange={handleChange}
+              <label className="block font-medium text-gray-700 mb-1.5">SKU</label>
+              <input type="text" name="sku" value={formData.sku} onChange={handleChange}
                 className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
               <p className="text-xs text-gray-400 mt-1">Must be unique across products</p>
             </div>
