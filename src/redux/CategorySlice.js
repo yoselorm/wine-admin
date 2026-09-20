@@ -20,6 +20,7 @@ export const fetchCategories = createAsyncThunk(
     try {
       const queryParams = new URLSearchParams();
       if (params.search) queryParams.append('search', params.search);
+      if (params.type) queryParams.append('type', params.type);
       if (params.page) queryParams.append('page', params.page);
       if (params.per_page) queryParams.append('per_page', params.per_page);
       if (params.sort_by) queryParams.append('sort_by', params.sort_by);

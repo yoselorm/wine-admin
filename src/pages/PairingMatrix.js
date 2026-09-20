@@ -64,7 +64,7 @@ const PairingMatrix = () => {
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
               {[
                 ['Dishes', summary.dishes, 'in the vocabulary', 'text-gray-900'],
-                ['No wine at all', summary.unpaired, 'pair to nothing', 'text-red-600'],
+                ['No wine at all', summary.unpaired, 'pair to nothing', 'text-red-500'],
                 ['Thinly covered', summary.thinly_covered, `${summary.thin_coverage_threshold ?? 2} wines or fewer`, 'text-yellow-600'],
                 ['Local pairings', summary.local_pairings, 'Ghanaian dishes', 'text-gray-900'],
                 ['International', summary.international_pairings, 'everything else', 'text-gray-900'],
@@ -107,14 +107,14 @@ const PairingMatrix = () => {
                     const status = row.total === 0 ? 'No wine' : row.is_thin ? 'Thin' : 'Covered';
                     return (
                       <tr key={row.dish_id}>
-                        <td className={`px-5 py-2.5 font-medium whitespace-nowrap sticky left-0 bg-white ${row.total === 0 ? 'text-red-600' : 'text-gray-800'}`}>
+                        <td className={`px-5 py-2.5 font-medium whitespace-nowrap sticky left-0 bg-white ${row.total === 0 ? 'text-red-500' : 'text-gray-800'}`}>
                           {row.dish}
                           <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-gray-400">{row.is_local ? 'Local' : 'Intl'}</span>
                         </td>
                         {colours.map((c) => {
                           const val = row.cells?.[c.slug] ?? 0;
                           return (
-                            <td key={c.slug} className={`px-4 py-2.5 text-right font-medium ${val === 0 ? 'text-red-500 font-semibold bg-red-50/60' : 'text-gray-700'}`}>
+                            <td key={c.slug} className={`px-4 py-2.5 text-right font-medium ${val === 0 ? 'text-red-500 font-semibold bg-red-500/10' : 'text-gray-700'}`}>
                               {val}
                             </td>
                           );

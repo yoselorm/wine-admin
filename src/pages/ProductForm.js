@@ -27,7 +27,10 @@ import Pill from "../components/ui/Pill";
 import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 import ProductPreviewModal from "../components/ProductPreviewModal";
 import RichTextEditor from "../components/RichTextEditor";
+import Pagination from "../components/Pagination";
 import toast from "../components/Toast";
+
+const PICKER_PAGE_SIZE = 10;
 
 const WINE_ATTRIBUTE_TYPES = ["bold", "dry", "acidity", "tannic", "soft", "light", "fizzy", "sweet"];
 const WINE_COLOURS = ["Red", "White", "Rosé", "Sparkling", "Dessert"];
@@ -102,14 +105,22 @@ const ProductForm = () => {
     previewData, previewMessage, previewLoading, previewError,
   } = useSelector((s) => s.products);
   const { brands } = useSelector((state) => state.brands || { items: [] });
-  const { categories } = useSelector((state) => state.categories || { items: [] });
-  const { regions } = useSelector((state) => state.wineRegions || { items: [] });
+  const { categories, pagination: categoryPagination } = useSelector((state) => state.categories || { items: [] });
+  const { regions, pagination: regionPagination } = useSelector((state) => state.wineRegions || { items: [] });
   const { posts: blogs } = useSelector((state) => state.blogs || { items: [] });
   const { foodDishes: dishes } = useSelector((state) => state.foodDishes || { items: [] });
 
   const [formData, setFormData] = useState(initialFormState);
   const [categoryTypeFilter, setCategoryTypeFilter] = useState("wine_type");
+  const [categorySearch, setCategorySearch] = useState("");
+  const [categoryPage, setCategoryPage] = useState(1);
+  // /admin/categories and /admin/wine-regions now paginate (15/page by default), so only the
+  // page currently being browsed lives in redux — cache every category/region we've ever seen
+  // by id so a selection made on page 1 still shows its name after paging to page 4.
+  const [categoryCache, setCategoryCache] = useState({});
   const [regionSearch, setRegionSearch] = useState("");
+  const [regionPage, setRegionPage] = useState(1);
+  const [regionCache, setRegionCache] = useState({});
   const [blogSearch, setBlogSearch] = useState("");
   const [attrDraft, setAttrDraft] = useState({ type: "bold", value: "5" });
   const [pairingDraft, setPairingDraft] = useState({ dish_id: "", reason: "" });
@@ -120,14 +131,50 @@ const ProductForm = () => {
 
   useEffect(() => {
     dispatch(fetchBrands());
-    dispatch(fetchCategories());
-    dispatch(fetchWineRegions());
     dispatch(fetchBlogs());
     dispatch(fetchFoodDishes());
     if (isEditing) dispatch(fetchProductById(id));
     return () => dispatch(clearCurrentProduct());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  useEffect(() => {
+    dispatch(fetchCategories({ type: categoryTypeFilter, search: categorySearch || undefined, page: categoryPage, per_page: PICKER_PAGE_SIZE }));
+  }, [dispatch, categoryTypeFilter, categorySearch, categoryPage]);
+
+  useEffect(() => {
+    setCategoryPage(1);
+  }, [categoryTypeFilter, categorySearch]);
+
+  useEffect(() => {
+    dispatch(fetchWineRegions({ search: regionSearch || undefined, page: regionPage, per_page: PICKER_PAGE_SIZE }));
+  }, [dispatch, regionSearch, regionPage]);
+
+  useEffect(() => {
+    setRegionPage(1);
+  }, [regionSearch]);
+
+  // Every page of results we've ever fetched gets folded into the lookup cache, so a category
+  // picked on an earlier page/tab keeps its label in the "selected" summary indefinitely.
+  useEffect(() => {
+    if (categories?.length) {
+      setCategoryCache((prev) => {
+        const next = { ...prev };
+        categories.forEach((c) => { next[c.id] = c; });
+        return next;
+      });
+    }
+  }, [categories]);
+
+  useEffect(() => {
+    if (regions?.length) {
+      setRegionCache((prev) => {
+        const next = { ...prev };
+        regions.forEach((r) => { next[r.id] = r; });
+        return next;
+      });
+    }
+  }, [regions]);
 
   useEffect(() => {
     if (isEditing && currentProduct) {
@@ -142,6 +189,21 @@ const ProductForm = () => {
         pairings: currentProduct.pairings || [],
         images: (currentProduct.images || []).map((img) => ({ ...img, is_upload: false, file: null })),
       });
+      if (Array.isArray(currentProduct.categories) && currentProduct.categories.length) {
+        setCategoryCache((prev) => {
+          const next = { ...prev };
+          currentProduct.categories.forEach((c) => { next[c.id] = c; });
+          return next;
+        });
+      }
+      const productRegions = currentProduct.wine_regions || currentProduct.regions;
+      if (Array.isArray(productRegions) && productRegions.length) {
+        setRegionCache((prev) => {
+          const next = { ...prev };
+          productRegions.forEach((r) => { next[r.id] = r; });
+          return next;
+        });
+      }
       if (!dishes.find((d) => d.id === pairingDraft.dish_id)) {
         setPairingDraft((p) => ({ ...p, dish_id: dishes[0]?.id || "" }));
       }
@@ -304,10 +366,11 @@ const ProductForm = () => {
     dispatch(clearPreview());
   };
 
-  const filteredRegions = regions?.filter((r) => r.name.toLowerCase().includes(regionSearch.toLowerCase())) || [];
+  // Search/type filtering now happens server-side (both endpoints paginate), so `categories`
+  // and `regions` are already just the page being browsed — no client-side filtering needed.
   const filteredBlogs = blogs?.filter((b) => b.title.toLowerCase().includes(blogSearch.toLowerCase())) || [];
-  const categoriesByType = categories?.filter((c) => (c.type || "product") === categoryTypeFilter) || [];
-  const selectedCategories = categories?.filter((c) => formData.category_ids.includes(c.id)) || [];
+  const selectedCategories = formData.category_ids.map((cid) => categoryCache[cid]).filter(Boolean);
+  const selectedRegions = formData.wineRegion_ids.map((rid) => regionCache[rid]).filter(Boolean);
 
   if (isEditing && loading && !currentProduct) {
     return (
@@ -473,36 +536,49 @@ const ProductForm = () => {
                 </div>
               )}
 
-              <div className="flex gap-1.5 mb-2.5">
-                {CATEGORY_TYPES.map((t) => {
-                  const count = selectedCategories.filter((c) => (c.type || "product") === t.value).length;
-                  return (
-                    <button key={t.value} type="button" onClick={() => setCategoryTypeFilter(t.value)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-colors ${
-                        categoryTypeFilter === t.value ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-                      }`}>
-                      {t.label}
-                      {count > 0 && (
-                        <span className={`text-[10px] rounded-full w-4 h-4 flex items-center justify-center ${
-                          categoryTypeFilter === t.value ? "bg-white/20" : "bg-violet-100 text-violet-600"
-                        }`}>{count}</span>
-                      )}
-                    </button>
-                  );
-                })}
+              <div className="flex items-center justify-between gap-2 mb-2.5">
+                <div className="flex gap-1.5 flex-wrap">
+                  {CATEGORY_TYPES.map((t) => {
+                    const count = selectedCategories.filter((c) => (c.type || "product") === t.value).length;
+                    return (
+                      <button key={t.value} type="button" onClick={() => setCategoryTypeFilter(t.value)}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-colors ${
+                          categoryTypeFilter === t.value ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                        }`}>
+                        {t.label}
+                        {count > 0 && (
+                          <span className={`text-[10px] rounded-full w-4 h-4 flex items-center justify-center ${
+                            categoryTypeFilter === t.value ? "bg-white/20" : "bg-violet-100 text-violet-600"
+                          }`}>{count}</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="relative flex-shrink-0">
+                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input type="text" placeholder={`Search ${CATEGORY_TYPE_LABEL[categoryTypeFilter].toLowerCase()}...`}
+                    value={categorySearch} onChange={(e) => setCategorySearch(e.target.value)}
+                    className="pl-7 pr-2 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500 w-40" />
+                </div>
               </div>
 
-              <div className="flex flex-wrap gap-2">
-                {categoriesByType.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic py-1">No {CATEGORY_TYPE_LABEL[categoryTypeFilter].toLowerCase()} categories yet.</p>
+              <div className="flex flex-wrap gap-2 min-h-[34px]">
+                {categories.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic py-1">No {CATEGORY_TYPE_LABEL[categoryTypeFilter].toLowerCase()} categories match.</p>
                 ) : (
-                  categoriesByType.map((c) => (
+                  categories.map((c) => (
                     <Pill key={c.id} active={formData.category_ids.includes(c.id)} onClick={() => toggleSelection("category_ids", c.id)}>
                       {c.name}
                     </Pill>
                   ))
                 )}
               </div>
+              {categoryPagination && categoryPagination.last_page > 1 && (
+                <div className="mt-2.5">
+                  <Pagination meta={categoryPagination} onPageChange={setCategoryPage} compact />
+                </div>
+              )}
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -513,13 +589,35 @@ const ProductForm = () => {
                     className="pl-7 pr-2 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500 w-40" />
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {filteredRegions.map((r) => (
-                  <Pill key={r.id} active={formData.wineRegion_ids.includes(r.id)} onClick={() => toggleSelection("wineRegion_ids", r.id)}>
-                    {r.name}
-                  </Pill>
-                ))}
+
+              {selectedRegions.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2.5 pb-2.5 border-b border-gray-100">
+                  {selectedRegions.map((r) => (
+                    <button key={r.id} type="button" onClick={() => toggleSelection("wineRegion_ids", r.id)}
+                      className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 text-xs font-medium bg-violet-50 text-violet-700 border border-violet-100 rounded-full hover:bg-violet-100">
+                      {r.name}
+                      <X size={11} />
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-2 min-h-[34px]">
+                {regions.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic py-1">No regions match.</p>
+                ) : (
+                  regions.map((r) => (
+                    <Pill key={r.id} active={formData.wineRegion_ids.includes(r.id)} onClick={() => toggleSelection("wineRegion_ids", r.id)}>
+                      {r.name}
+                    </Pill>
+                  ))
+                )}
               </div>
+              {regionPagination && regionPagination.last_page > 1 && (
+                <div className="mt-2.5">
+                  <Pagination meta={regionPagination} onPageChange={setRegionPage} compact />
+                </div>
+              )}
             </div>
             <div>
               <div className="flex items-center justify-between mb-2">
