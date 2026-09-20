@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Plus, Trash, Loader2, UploadCloud, X, Search, Sparkles, Eye } from "lucide-react";
+import { ArrowLeft, Plus, Trash, Loader2, UploadCloud, X, Search, Sparkles, Eye, Star } from "lucide-react";
 
 import {
   fetchProductById,
@@ -21,6 +21,7 @@ import { fetchWineRegions } from "../redux/WineRegionSlice";
 import { fetchBlogs } from "../redux/BlogSlice";
 import { fetchFoodDishes } from "../redux/FoodDishSlice";
 import { fetchWineAttributes } from "../redux/WineAttributeSlice";
+import { fetchWineCharacteristics } from "../redux/WineCharacteristicSlice";
 import { TASTING_AXES } from "../utils/tastingAxes";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
@@ -30,6 +31,7 @@ import ConfirmDeleteModal from "../components/ConfirmDeleteModal";
 import ProductPreviewModal from "../components/ProductPreviewModal";
 import RichTextEditor from "../components/RichTextEditor";
 import Pagination from "../components/Pagination";
+import ImagePreview from "../components/ImagePreview";
 import toast from "../components/Toast";
 
 const PICKER_PAGE_SIZE = 10;
@@ -114,6 +116,7 @@ const ProductForm = () => {
   const { posts: blogs } = useSelector((state) => state.blogs || { items: [] });
   const { foodDishes: dishes } = useSelector((state) => state.foodDishes || { items: [] });
   const { attributes: allWineAttributes } = useSelector((state) => state.wineAttributes || { attributes: [] });
+  const { characteristics: allWineCharacteristics } = useSelector((state) => state.wineCharacteristics || { characteristics: [] });
 
   const [formData, setFormData] = useState(initialFormState);
   const [categoryTypeFilter, setCategoryTypeFilter] = useState("wine_type");
@@ -128,7 +131,7 @@ const ProductForm = () => {
   const [regionCache, setRegionCache] = useState({});
   const [blogSearch, setBlogSearch] = useState("");
   const [axisDraft, setAxisDraft] = useState({ axis: "bold", score: "5" });
-  const [wineAttrDraft, setWineAttrDraft] = useState({ attribute_type: "", value: "" });
+  const [attributeTypeFilter, setAttributeTypeFilter] = useState("");
   const [pairingDraft, setPairingDraft] = useState({ dish_id: "", reason: "", pairing_type: "international" });
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
@@ -139,14 +142,40 @@ const ProductForm = () => {
     dispatch(fetchBrands());
     dispatch(fetchBlogs());
     dispatch(fetchFoodDishes());
-    // Reference data for the "choose instead of type" attribute picker below — see WineAttributes.js.
+    // Reference data for the "choose instead of type" pickers below — see WineAttributes.js / WineCharacteristics.js.
     dispatch(fetchWineAttributes({ per_page: 500 }));
+    dispatch(fetchWineCharacteristics({ per_page: 500 }));
     if (isEditing) dispatch(fetchProductById(id));
     return () => dispatch(clearCurrentProduct());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const knownAttributeTypes = [...new Set((allWineAttributes || []).map((a) => a.attribute_type).filter(Boolean))].sort();
+  // Attributes are picked the same way categories are: choose a type, pick from that type's
+  // known values. Both dimensions come from the Wine Attributes catalog, not typed by hand.
+  const attributeTypes = [...new Set((allWineAttributes || []).map((a) => a.attribute_type).filter(Boolean))].sort();
+  const attributeValuesForType = (allWineAttributes || []).filter((a) => a.attribute_type === attributeTypeFilter);
+  const selectedWineAttributes = formData.wine_attributes || [];
+
+  useEffect(() => {
+    if (!attributeTypeFilter && attributeTypes.length) setAttributeTypeFilter(attributeTypes[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attributeTypes.length]);
+
+  const toggleWineAttribute = (attribute_type, value) => {
+    setFormData((prev) => {
+      const exists = prev.wine_attributes.some((a) => a.attribute_type === attribute_type && a.value === value);
+      return {
+        ...prev,
+        wine_attributes: exists
+          ? prev.wine_attributes.filter((a) => !(a.attribute_type === attribute_type && a.value === value))
+          : [...prev.wine_attributes, { attribute_type, value }],
+      };
+    });
+  };
+
+  // The axis picker mixes the eight built-in tasting axes with any custom ones an admin has
+  // added on the Wine Characteristics page, so a newly-defined axis shows up here immediately.
+  const axisOptions = [...new Set([...TASTING_AXES.map((a) => a.key), ...(allWineCharacteristics || []).map((c) => c.axis)].filter(Boolean))].sort();
 
   useEffect(() => {
     dispatch(fetchCategories({ type: categoryTypeFilter, search: categorySearch || undefined, page: categoryPage, per_page: PICKER_PAGE_SIZE }));
@@ -296,18 +325,6 @@ const ProductForm = () => {
     }));
   };
 
-  const handleAddWineAttribute = () => {
-    if (!wineAttrDraft.attribute_type.trim() || !wineAttrDraft.value.trim()) return;
-    setFormData((prev) => ({
-      ...prev,
-      wine_attributes: [
-        ...prev.wine_attributes.filter((a) => a.attribute_type !== wineAttrDraft.attribute_type),
-        { ...wineAttrDraft },
-      ],
-    }));
-    setWineAttrDraft({ attribute_type: "", value: "" });
-  };
-
   const handleAddPairing = () => {
     if (!pairingDraft.dish_id) return;
     addNestedObjectItem("pairings", { ...pairingDraft });
@@ -357,6 +374,24 @@ const ProductForm = () => {
     const files = Array.from(e.target.files || []);
     files.forEach((file) => {
       addNestedObjectItem("images", { file, is_upload: true, alt_text: "", is_primary: formData.images.length === 0 });
+    });
+  };
+
+  const setPrimaryImage = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      images: prev.images.map((img, i) => ({ ...img, is_primary: i === index })),
+    }));
+  };
+
+  const removeImage = (index) => {
+    setFormData((prev) => {
+      const removedWasPrimary = prev.images[index]?.is_primary;
+      const images = prev.images.filter((_, i) => i !== index);
+      if (removedWasPrimary && images.length > 0 && !images.some((img) => img.is_primary)) {
+        images[0] = { ...images[0], is_primary: true };
+      }
+      return { ...prev, images };
     });
   };
 
@@ -748,17 +783,27 @@ const ProductForm = () => {
             <input type="file" accept="image/*" multiple onChange={handleImageFiles} className="hidden" />
           </label>
           {formData.images?.length > 0 && (
-            <div className="flex flex-wrap gap-3 mt-4">
-              {formData.images.map((img, index) => (
-                <div key={index} className="relative w-20 h-20 rounded-md border border-gray-200 overflow-hidden bg-gray-50 flex items-center justify-center text-xs text-gray-400">
-                  {img.is_upload ? img.file?.name?.slice(0, 10) : <img src={img.image_url} alt="" className="w-full h-full object-cover" />}
-                  <button type="button" onClick={() => removeNestedObjectItem(index, "images")}
-                    className="absolute top-0.5 right-0.5 bg-white/90 rounded-full p-0.5 text-red-500 hover:bg-white">
-                    <X size={12} />
-                  </button>
-                </div>
-              ))}
-            </div>
+            <>
+              <p className="text-xs text-gray-400 mt-4 mb-2">Click the star to choose which image shows first on the storefront.</p>
+              <div className="flex flex-wrap gap-3">
+                {formData.images.map((img, index) => (
+                  <div key={index} className={`relative w-20 h-20 rounded-md border overflow-hidden bg-white flex items-center justify-center ${
+                    img.is_primary ? "border-violet-400 ring-2 ring-violet-100" : "border-gray-200"
+                  }`}>
+                    <ImagePreview file={img.is_upload ? img.file : img.image_url} className="w-full h-full object-contain" alt="" />
+                    <button type="button" onClick={() => setPrimaryImage(index)}
+                      title={img.is_primary ? "Primary image" : "Set as primary"}
+                      className={`absolute bottom-0.5 left-0.5 rounded-full p-0.5 ${img.is_primary ? "bg-violet-500 text-white" : "bg-white/90 text-gray-400 hover:text-violet-500"}`}>
+                      <Star size={12} fill={img.is_primary ? "currentColor" : "none"} />
+                    </button>
+                    <button type="button" onClick={() => removeImage(index)}
+                      className="absolute top-0.5 right-0.5 bg-white/90 rounded-full p-0.5 text-red-500 hover:bg-white">
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </Card>
 
@@ -773,7 +818,10 @@ const ProductForm = () => {
           <div className="flex items-center gap-2 mb-3">
             <select value={axisDraft.axis} onChange={(e) => setAxisDraft((d) => ({ ...d, axis: e.target.value }))}
               className="px-3 py-2 border border-gray-200 rounded-md bg-white text-sm focus:outline-none focus:border-violet-500">
-              {TASTING_AXES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
+              {axisOptions.map((key) => {
+                const builtIn = TASTING_AXES.find((t) => t.key === key);
+                return <option key={key} value={key}>{builtIn?.label || key}</option>;
+              })}
             </select>
             <input type="number" min="0" max="10" placeholder="0–10" value={axisDraft.score}
               onChange={(e) => setAxisDraft((d) => ({ ...d, score: e.target.value }))}
@@ -794,35 +842,65 @@ const ProductForm = () => {
 
         <Card title="Wine Attributes">
           <p className="text-xs text-gray-400 mb-3">
-            Free-form facts — closure type, residual sugar, oak treatment... whatever doesn't fit a tasting
-            score. Adding the same attribute again replaces it. Start typing to choose from types used
-            elsewhere in the catalog, or enter a new one — see the{' '}
+            Free-form facts — closure type, residual sugar, oak treatment. Pick a type, then choose from
+            that type's known values — defined on the{' '}
             <button type="button" onClick={() => navigate('/dashboard/wine-attributes')} className="text-violet-600 hover:underline">
               Wine Attributes
-            </button> page to browse them all.
+            </button> page.
           </p>
-          <div className="flex items-center gap-2 mb-3">
-            <input list="known-attribute-types" type="text" placeholder="Attribute, e.g. Closure" value={wineAttrDraft.attribute_type}
-              onChange={(e) => setWineAttrDraft((d) => ({ ...d, attribute_type: e.target.value }))}
-              className="px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-violet-500 w-44" />
-            <datalist id="known-attribute-types">
-              {knownAttributeTypes.map((t) => <option key={t} value={t} />)}
-            </datalist>
-            <input type="text" placeholder="Value, e.g. Screwcap" value={wineAttrDraft.value}
-              onChange={(e) => setWineAttrDraft((d) => ({ ...d, value: e.target.value }))}
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-violet-500" />
-            <Button type="button" size="sm" appearance="secondary" onClick={handleAddWineAttribute}>Add</Button>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {formData.wine_attributes?.map((attr, index) => (
-              <span key={index} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 text-sm text-gray-700">
-                <span className="text-gray-500">{attr.attribute_type}:</span> {attr.value}
-                <button type="button" onClick={() => removeNestedObjectItem(index, "wine_attributes")} className="text-gray-400 hover:text-red-500">
-                  <X size={12} />
+
+          {selectedWineAttributes.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-3 pb-3 border-b border-gray-100">
+              {selectedWineAttributes.map((a, i) => (
+                <button key={i} type="button" onClick={() => toggleWineAttribute(a.attribute_type, a.value)}
+                  className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 text-xs font-medium bg-violet-50 text-violet-700 border border-violet-100 rounded-full hover:bg-violet-100">
+                  <span className="text-[10px] text-violet-400 uppercase font-bold">{a.attribute_type}</span>
+                  {a.value}
+                  <X size={11} />
                 </button>
-              </span>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
+
+          {attributeTypes.length === 0 ? (
+            <p className="text-xs text-gray-400 italic py-1">
+              No attributes defined yet — add some on the{' '}
+              <button type="button" onClick={() => navigate('/dashboard/wine-attributes')} className="text-violet-600 hover:underline">Wine Attributes</button> page.
+            </p>
+          ) : (
+            <>
+              <div className="flex gap-1.5 mb-2.5 flex-wrap">
+                {attributeTypes.map((type) => {
+                  const count = selectedWineAttributes.filter((a) => a.attribute_type === type).length;
+                  return (
+                    <button key={type} type="button" onClick={() => setAttributeTypeFilter(type)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-colors ${
+                        attributeTypeFilter === type ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                      }`}>
+                      {type}
+                      {count > 0 && (
+                        <span className={`text-[10px] rounded-full w-4 h-4 flex items-center justify-center ${
+                          attributeTypeFilter === type ? "bg-white/20" : "bg-violet-100 text-violet-600"
+                        }`}>{count}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {attributeValuesForType.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic py-1">No values recorded for {attributeTypeFilter} yet.</p>
+                ) : (
+                  attributeValuesForType.map((a) => (
+                    <Pill key={a.id} active={selectedWineAttributes.some((s) => s.attribute_type === a.attribute_type && s.value === a.value)}
+                      onClick={() => toggleWineAttribute(a.attribute_type, a.value)}>
+                      {a.value}
+                    </Pill>
+                  ))
+                )}
+              </div>
+            </>
+          )}
         </Card>
 
         <Card title="Food Pairings">

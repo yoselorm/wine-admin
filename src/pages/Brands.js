@@ -6,6 +6,7 @@ import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Pagination from '../components/Pagination';
 import RichTextEditor from '../components/RichTextEditor';
+import ImagePreview from '../components/ImagePreview';
 import { paginateLocal } from '../utils/paginateLocal';
 
 const emptyDetail = { name: '', slug: '', description: '', logo_url: '' };
@@ -167,8 +168,9 @@ const Brands = () => {
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Logo</label>
                   <div className="flex items-center gap-3">
-                    <label className="w-14 h-14 border-2 border-dashed border-gray-200 rounded-md flex items-center justify-center text-gray-300 cursor-pointer hover:border-violet-300 flex-shrink-0">
-                      <Plus size={18} />
+                    <label className="w-14 h-14 border-2 border-dashed border-gray-200 rounded-md flex items-center justify-center text-gray-300 cursor-pointer hover:border-violet-300 flex-shrink-0 overflow-hidden bg-white">
+                      <ImagePreview file={detail.logo_url} className="w-full h-full object-cover" alt="" />
+                      {!detail.logo_url && <Plus size={18} />}
                       <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && setDetail((p) => ({ ...p, logo_url: e.target.files[0] }))} />
                     </label>
                     <span className="text-sm text-violet-600 font-medium flex items-center gap-1"><Upload size={13} /> Upload logo · JPG, PNG, WebP</span>

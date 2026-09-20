@@ -13,6 +13,7 @@ import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Badge from '../components/ui/Badge';
 import Pagination from '../components/Pagination';
 import RichTextEditor from '../components/RichTextEditor';
+import ImagePreview from '../components/ImagePreview';
 import { paginateLocal } from '../utils/paginateLocal';
 
 // `food_pairing` is a legacy type the API still accepts but food dishes have superseded it —
@@ -220,8 +221,9 @@ const Categories = () => {
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Image</label>
                   <div className="flex items-center gap-3">
-                    <label className="w-14 h-14 border-2 border-dashed border-gray-200 rounded-md flex items-center justify-center text-gray-300 cursor-pointer hover:border-violet-300 flex-shrink-0">
-                      <Plus size={18} />
+                    <label className="w-14 h-14 border-2 border-dashed border-gray-200 rounded-md flex items-center justify-center text-gray-300 cursor-pointer hover:border-violet-300 flex-shrink-0 overflow-hidden bg-white">
+                      <ImagePreview file={detail.image_url} className="w-full h-full object-cover" alt="" />
+                      {!detail.image_url && <Plus size={18} />}
                       <input type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
                     </label>
                     <span className="text-sm text-violet-600 font-medium flex items-center gap-1"><Upload size={13} /> Upload · JPG, PNG, WebP</span>

@@ -7,6 +7,7 @@ import categoryReducer from './redux/CategorySlice';
 import productReducer from './redux/ProductSlice';
 import inventoryReducer from './redux/InventorySlice';
 import wineAttributeReducer from './redux/WineAttributeSlice';
+import wineCharacteristicReducer from './redux/WineCharacteristicSlice';
 import wineRegionReducer from './redux/WineRegionSlice';
 import orderReducer from './redux/OrderSlice';
 import couponReducer from './redux/CouponSlice';
@@ -37,6 +38,7 @@ const store = configureStore({
     products: productReducer,
     inventory: inventoryReducer,
     wineAttributes: wineAttributeReducer,
+    wineCharacteristics: wineCharacteristicReducer,
     wineRegions: wineRegionReducer,
     orders: orderReducer,
     coupons: couponReducer,

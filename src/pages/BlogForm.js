@@ -11,6 +11,7 @@ import Switch from '../components/ui/Switch';
 import Pill from '../components/ui/Pill';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import RichTextEditor from '../components/RichTextEditor';
+import ImagePreview from '../components/ImagePreview';
 import toast from '../components/Toast';
 
 const emptyForm = {
@@ -244,10 +245,16 @@ const BlogForm = () => {
             <div className="space-y-4 text-sm">
               <div>
                 <label className="block font-medium text-gray-700 mb-1.5">Featured Image</label>
-                <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-gray-200 rounded-md py-6 cursor-pointer hover:border-violet-300 hover:bg-violet-50/30 transition-colors">
-                  <UploadCloud size={18} className="text-gray-400" />
-                  <span className="text-sm font-semibold text-violet-600">Upload</span>
-                  <span className="text-xs text-gray-400">JPG, PNG, WebP · max 5 MB</span>
+                <label className="flex flex-col items-center justify-center gap-1 border-2 border-dashed border-gray-200 rounded-md py-6 cursor-pointer hover:border-violet-300 hover:bg-violet-50/30 transition-colors overflow-hidden relative">
+                  {formData.featured_image ? (
+                    <ImagePreview file={formData.featured_image} className="absolute inset-0 w-full h-full object-cover" alt="" />
+                  ) : (
+                    <>
+                      <UploadCloud size={18} className="text-gray-400" />
+                      <span className="text-sm font-semibold text-violet-600">Upload</span>
+                      <span className="text-xs text-gray-400">JPG, PNG, WebP · max 5 MB</span>
+                    </>
+                  )}
                   <input type="file" name="featured_image" accept="image/*" onChange={handleFileChange} className="hidden" />
                 </label>
               </div>

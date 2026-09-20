@@ -2,6 +2,16 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../services/Api';
 import { api_url } from '../utils/config';
 
+const prepareFormData = (data) => {
+  const formData = new FormData();
+  Object.keys(data).forEach((key) => {
+    if (data[key] !== null && data[key] !== undefined) {
+      formData.append(key, data[key]);
+    }
+  });
+  return formData;
+};
+
 // 1. Fetch Wine Regions List (Handles query params: page, per_page, sort_by, sort_order, search, type)
 export const fetchWineRegions = createAsyncThunk(
   'wineRegions/fetchAll',
@@ -24,7 +34,11 @@ export const createWineRegion = createAsyncThunk(
   'wineRegions/create',
   async (regionData, { rejectWithValue }) => {
     try {
-      const response = await api.post(`${api_url}/v1/admin/wine-regions`, regionData);
+      const hasFile = regionData.flag_url instanceof File || regionData.image_url instanceof File;
+      const payload = hasFile ? prepareFormData(regionData) : regionData;
+      const response = await api.post(`${api_url}/v1/admin/wine-regions`, payload, {
+        headers: hasFile ? { 'Content-Type': 'multipart/form-data' } : undefined,
+      });
       return response.data;
     } catch (error) {
       return rejectWithValue(
@@ -39,7 +53,19 @@ export const updateWineRegion = createAsyncThunk(
   'wineRegions/update',
   async ({ id, data }, { rejectWithValue }) => {
     try {
-      const response = await api.put(`${api_url}/v1/admin/wine-regions/${id}`, data);
+      const hasFile = data.flag_url instanceof File || data.image_url instanceof File;
+      let response;
+      if (hasFile) {
+        // PHP never populates uploaded files on PUT/PATCH bodies, so multipart updates must go
+        // over POST with Laravel's _method spoof field to still hit the PUT route/controller.
+        const payload = prepareFormData(data);
+        payload.append('_method', 'PUT');
+        response = await api.post(`${api_url}/v1/admin/wine-regions/${id}`, payload, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      } else {
+        response = await api.put(`${api_url}/v1/admin/wine-regions/${id}`, data);
+      }
       return response.data;
     } catch (error) {
       return rejectWithValue(

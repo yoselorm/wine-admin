@@ -71,10 +71,13 @@ export const updateBrand = createAsyncThunk(
   async ({ id, brandData }, { rejectWithValue }) => {
     try {
       const hasFile = brandData.logo_url instanceof File;
-      
+
       let response;
       if (hasFile) {
+        // PHP never populates uploaded files on PUT/PATCH bodies, so multipart updates must go
+        // over POST with Laravel's _method spoof field to still hit the PUT route/controller.
         const payload = prepareFormData(brandData);
+        payload.append('_method', 'PUT');
         response = await api.post(`${api_url}/v1/admin/brands/${id}`, payload, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });

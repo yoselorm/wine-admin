@@ -13,6 +13,7 @@ import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Switch from '../components/ui/Switch';
 import Pagination from '../components/Pagination';
 import RichTextEditor from '../components/RichTextEditor';
+import ImagePreview from '../components/ImagePreview';
 import { paginateLocal } from '../utils/paginateLocal';
 
 const emptyDetail = {
@@ -216,16 +217,18 @@ const WineRegions = () => {
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Flag</label>
-                  <label className="w-14 h-14 border-2 border-dashed border-gray-200 rounded-md flex items-center justify-center text-gray-300 cursor-pointer hover:border-violet-300 mb-1">
-                    <Plus size={18} />
+                  <label className="w-14 h-14 border-2 border-dashed border-gray-200 rounded-md flex items-center justify-center text-gray-300 cursor-pointer hover:border-violet-300 mb-1 overflow-hidden bg-white">
+                    <ImagePreview file={detail.flag_url} className="w-full h-full object-cover" alt="" />
+                    {!detail.flag_url && <Plus size={18} />}
                     <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && setDetail((p) => ({ ...p, flag_url: e.target.files[0] }))} />
                   </label>
                   <span className="text-xs text-violet-600 font-medium flex items-center gap-1"><Upload size={12} /> Upload flag</span>
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Image</label>
-                  <label className="w-14 h-14 border-2 border-dashed border-gray-200 rounded-md flex items-center justify-center text-gray-300 cursor-pointer hover:border-violet-300 mb-1">
-                    <Plus size={18} />
+                  <label className="w-14 h-14 border-2 border-dashed border-gray-200 rounded-md flex items-center justify-center text-gray-300 cursor-pointer hover:border-violet-300 mb-1 overflow-hidden bg-white">
+                    <ImagePreview file={detail.image_url} className="w-full h-full object-cover" alt="" />
+                    {!detail.image_url && <Plus size={18} />}
                     <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && setDetail((p) => ({ ...p, image_url: e.target.files[0] }))} />
                   </label>
                   <span className="text-xs text-violet-600 font-medium flex items-center gap-1"><Upload size={12} /> Upload image</span>

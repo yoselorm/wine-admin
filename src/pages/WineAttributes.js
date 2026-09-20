@@ -7,7 +7,6 @@ import {
   deleteWineAttribute,
   clearWineAttributeStatus,
 } from '../redux/WineAttributeSlice';
-import { fetchProducts } from '../redux/ProductSlice';
 import { Loader2, Plus, Search } from 'lucide-react';
 import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
@@ -17,30 +16,23 @@ import { paginateLocal } from '../utils/paginateLocal';
 const emptyDetail = { attribute_type: '', value: '' };
 const PER_PAGE = 12;
 
-// Free-form facts about a wine that aren't a tasting score — closure type, residual sugar, oak
-// treatment... There's no fixed vocabulary for `attribute_type` (the API just requires a string),
-// so this page doubles as where that vocabulary actually comes from: every distinct type ever
-// used here feeds the "choose instead of type" picker on the product form.
+// A catalog of (type, value) facts — closure, residual sugar, oak treatment — not tied to any one
+// product. Each entry's `products_count` shows how many wines currently carry it; the product
+// form's Wine Attributes picker reads this whole list to let an admin choose instead of type.
 const WineAttributes = () => {
   const dispatch = useDispatch();
   const { attributes, loading, mutationLoading, error, successMessage } = useSelector((s) => s.wineAttributes);
-  const { items: products } = useSelector((s) => s.products || { items: [] });
 
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(emptyDetail);
-  const [newAttr, setNewAttr] = useState({ product_id: '', attribute_type: '', value: '' });
+  const [newAttr, setNewAttr] = useState(emptyDetail);
   const [search, setSearch] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     dispatch(fetchWineAttributes({ per_page: 500 }));
-    dispatch(fetchProducts({ per_page: 500 }));
   }, [dispatch]);
-
-  useEffect(() => {
-    if (!newAttr.product_id && products?.length) setNewAttr((p) => ({ ...p, product_id: products[0].id }));
-  }, [products, newAttr.product_id]);
 
   useEffect(() => {
     if (error) { toast.error(error); dispatch(clearWineAttributeStatus()); }
@@ -52,11 +44,9 @@ const WineAttributes = () => {
     }
   }, [error, successMessage, dispatch]);
 
-  const productName = (attr) => attr.product?.name || products?.find((p) => p.id === attr.product_id)?.name || attr.product_id;
-
   const filtered = (attributes || []).filter((a) => {
     const q = search.toLowerCase();
-    return !q || a.attribute_type.toLowerCase().includes(q) || String(a.value).toLowerCase().includes(q) || productName(a).toLowerCase().includes(q);
+    return !q || a.attribute_type.toLowerCase().includes(q) || String(a.value).toLowerCase().includes(q);
   });
   const { items: paged, meta: pagination } = paginateLocal(filtered, currentPage, PER_PAGE);
 
@@ -74,9 +64,9 @@ const WineAttributes = () => {
   const knownTypes = [...new Set((attributes || []).map((a) => a.attribute_type).filter(Boolean))].sort();
 
   const handleAddNew = () => {
-    if (!newAttr.product_id || !newAttr.attribute_type.trim() || !newAttr.value.trim()) return;
+    if (!newAttr.attribute_type.trim() || !newAttr.value.trim()) return;
     dispatch(createWineAttribute(newAttr));
-    setNewAttr((p) => ({ ...p, attribute_type: '', value: '' }));
+    setNewAttr(emptyDetail);
   };
 
   const handleSave = () => {
@@ -98,7 +88,7 @@ const WineAttributes = () => {
       <div>
         <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Wine Attributes</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Free-form facts per wine — closure type, residual sugar, oak treatment. For the eight fixed
+          Free-form facts — closure type, residual sugar, oak treatment. For the eight fixed
           tasting scores, see Wine Characteristics instead.
         </p>
       </div>
@@ -110,7 +100,7 @@ const WineAttributes = () => {
             <h3 className="text-sm font-bold text-gray-900">All Attributes</h3>
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-300" />
-              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search type, value or wine..."
+              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search type or value..."
                 className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
             </div>
           </div>
@@ -132,7 +122,7 @@ const WineAttributes = () => {
                     <p className={`text-sm font-semibold truncate ${selectedId === attr.id ? 'text-violet-700' : 'text-gray-900'}`}>
                       {attr.attribute_type}: <span className="font-normal text-gray-600">{attr.value}</span>
                     </p>
-                    <p className="text-xs text-gray-400 mt-0.5 truncate">{productName(attr)}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">{attr.products_count ?? 0} product{attr.products_count === 1 ? '' : 's'}</p>
                   </div>
                   <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(attr); }} className="text-gray-300 hover:text-red-500 text-lg leading-none flex-shrink-0 pl-2">×</button>
                 </div>
@@ -146,10 +136,6 @@ const WineAttributes = () => {
           )}
           <div className="p-4 border-t border-gray-100 flex-shrink-0 space-y-2">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">New Attribute</p>
-            <select value={newAttr.product_id} onChange={(e) => setNewAttr((a) => ({ ...a, product_id: e.target.value }))}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500">
-              {products?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
             <div className="flex gap-2">
               <input list="known-attribute-types" type="text" value={newAttr.attribute_type}
                 onChange={(e) => setNewAttr((a) => ({ ...a, attribute_type: e.target.value }))}
@@ -174,7 +160,7 @@ const WineAttributes = () => {
           ) : (
             <div className="p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-1">Attribute Details</h3>
-              <p className="text-xs text-gray-400 mb-5">On {productName(selected)}</p>
+              <p className="text-xs text-gray-400 mb-5">{selected.products_count ?? 0} product{selected.products_count === 1 ? '' : 's'} carry this attribute</p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-5 text-sm">
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Attribute Type <span className="text-red-500">*</span></label>
@@ -205,7 +191,7 @@ const WineAttributes = () => {
         onClose={() => setDeleteTarget(null)}
         onConfirm={executeDelete}
         title="Remove Attribute"
-        message={`Remove "${deleteTarget?.attribute_type}: ${deleteTarget?.value}" from ${deleteTarget ? productName(deleteTarget) : ''}?`}
+        message={`Remove "${deleteTarget?.attribute_type}: ${deleteTarget?.value}"? ${deleteTarget?.products_count ? `${deleteTarget.products_count} product(s) currently carry it.` : ''}`}
       />
     </div>
   );

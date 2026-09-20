@@ -1,62 +1,204 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Gauge } from 'lucide-react';
-import { fetchCatalogueInsights } from '../redux/InsightsSlice';
+import {
+  fetchWineCharacteristics,
+  createWineCharacteristic,
+  updateWineCharacteristic,
+  deleteWineCharacteristic,
+  clearWineCharacteristicStatus,
+} from '../redux/WineCharacteristicSlice';
+import { Loader2, Plus, Search } from 'lucide-react';
+import toast from '../components/Toast';
+import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import Pagination from '../components/Pagination';
 import { TASTING_AXES } from '../utils/tastingAxes';
+import { paginateLocal } from '../utils/paginateLocal';
 
-const STATUS = (pct) => (pct < 20 ? { label: 'Too thin', tone: 'text-red-600 bg-red-50' } : pct < 50 ? { label: 'Patchy', tone: 'text-yellow-700 bg-yellow-50' } : { label: 'Good', tone: 'text-green-700 bg-green-50' });
+const emptyDetail = { axis: '', score: '' };
+const PER_PAGE = 12;
 
-// There's no standalone CRUD for tasting scores — the eight axes below are a fixed vocabulary the
-// matching logic depends on (quiz coverage, the sommelier, insights), not admin-editable content.
-// This page exists to explain what each one means and show real coverage, pulling the same
-// numbers as Insights → Catalogue rather than maintaining a second copy of them.
+const builtInDescription = (axis) => TASTING_AXES.find((a) => a.key === axis.toLowerCase())?.description;
+
+// Tasting scores used to be a fixed 8-axis constant (bold/dry/acidity/tannic/soft/light/fizzy/
+// sweet) baked into the product form. That list is now just a starting point — an admin can
+// define new axis types here, and the product form's Characteristics picker reads this whole
+// catalog, the same way Wine Attributes works.
 const WineCharacteristics = () => {
   const dispatch = useDispatch();
-  const { data } = useSelector((s) => s.insights.catalogue);
+  const { characteristics, loading, mutationLoading, error, successMessage } = useSelector((s) => s.wineCharacteristics);
 
-  useEffect(() => { dispatch(fetchCatalogueInsights()); }, [dispatch]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [detail, setDetail] = useState(emptyDetail);
+  const [newAxis, setNewAxis] = useState(emptyDetail);
+  const [search, setSearch] = useState('');
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const totalWines = data?.totals?.wines;
-  const axisTop = data?.dimensions?.axis?.top || data?.dimensions?.axis?.values || [];
-  const coverageFor = (key) => axisTop.find((a) => (a.label || '').toLowerCase() === key);
+  useEffect(() => {
+    dispatch(fetchWineCharacteristics({ per_page: 500 }));
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (error) { toast.error(error); dispatch(clearWineCharacteristicStatus()); }
+    if (successMessage) {
+      toast.success(successMessage);
+      dispatch(clearWineCharacteristicStatus());
+      // create/update don't merge into local state, so refetch to reflect changes
+      dispatch(fetchWineCharacteristics({ per_page: 500 }));
+    }
+  }, [error, successMessage, dispatch]);
+
+  const filtered = (characteristics || []).filter((c) => !search || c.axis.toLowerCase().includes(search.toLowerCase()));
+  const { items: paged, meta: pagination } = paginateLocal(filtered, currentPage, PER_PAGE);
+
+  useEffect(() => { setCurrentPage(1); }, [search]);
+
+  useEffect(() => {
+    if (!selectedId && characteristics?.length) setSelectedId(characteristics[0].id);
+  }, [characteristics, selectedId]);
+
+  useEffect(() => {
+    const c = characteristics?.find((x) => x.id === selectedId);
+    if (c) setDetail({ axis: c.axis || '', score: c.score ?? '' });
+  }, [selectedId, characteristics]);
+
+  const knownAxes = [...new Set([...TASTING_AXES.map((a) => a.key), ...(characteristics || []).map((c) => c.axis)].filter(Boolean))].sort();
+
+  const handleAddNew = () => {
+    if (!newAxis.axis.trim() || newAxis.score === '') return;
+    dispatch(createWineCharacteristic({ axis: newAxis.axis.trim().toLowerCase(), score: Number(newAxis.score) }));
+    setNewAxis(emptyDetail);
+  };
+
+  const handleSave = () => {
+    if (selectedId) dispatch(updateWineCharacteristic({ id: selectedId, data: { axis: detail.axis, score: Number(detail.score) } }));
+  };
+
+  const executeDelete = async () => {
+    if (deleteTarget) {
+      await dispatch(deleteWineCharacteristic(deleteTarget.id));
+      if (selectedId === deleteTarget.id) setSelectedId(null);
+      setDeleteTarget(null);
+    }
+  };
+
+  const selected = characteristics?.find((c) => c.id === selectedId);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-2">
       <div>
         <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Wine Characteristics</h1>
         <p className="text-sm text-gray-500 mt-1">
-          The eight tasting axes every wine can be scored on, 0–10, from the product form. Fixed by the
-          matching logic — not something to add to or rename here.
+          Tasting axes scored 0–10 on the product form. Bold, dry, acidity and the rest of the usual
+          eight are here to start with — add new ones as they come up.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-        {TASTING_AXES.map((axis) => {
-          const cov = coverageFor(axis.key);
-          const pct = cov && totalWines ? Math.round((cov.wines / totalWines) * 100) : null;
-          const status = pct !== null ? STATUS(pct) : null;
-          return (
-            <div key={axis.key} className="bg-white border border-gray-200 rounded-xl shadow-card overflow-hidden flex flex-col">
-              <div className="px-5 py-4 border-b border-gray-100">
-                <h3 className="text-sm font-bold text-gray-900">{axis.label}</h3>
-              </div>
-              <div className="p-5 flex-1">
-                <p className="text-sm text-gray-600 leading-relaxed">{axis.description}</p>
-              </div>
-              <div className="px-5 py-3 border-t border-gray-100 bg-gray-50/60">
-                {cov ? (
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-gray-500">{cov.wines}{totalWines ? ` of ${totalWines}` : ''} scored{cov.avg != null ? ` · avg ${Number(cov.avg).toFixed(1)}` : ''}</span>
-                    {status && <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${status.tone}`}>{status.label}</span>}
+      <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-6 mt-4">
+        {/* LIST PANEL */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-card flex flex-col max-h-[calc(100vh-220px)]">
+          <div className="px-5 py-4 border-b border-gray-100 flex-shrink-0 space-y-2.5">
+            <h3 className="text-sm font-bold text-gray-900">All Characteristics</h3>
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-300" />
+              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search axis..."
+                className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+            {loading && characteristics.length === 0 ? (
+              <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" size={20} /></div>
+            ) : paged.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-10">No characteristics match.</p>
+            ) : (
+              paged.map((c) => (
+                <div
+                  key={c.id}
+                  onClick={() => setSelectedId(c.id)}
+                  className={`flex items-center justify-between px-5 py-3.5 cursor-pointer transition-colors ${
+                    selectedId === c.id ? 'bg-violet-50' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <div className="min-w-0">
+                    <p className={`text-sm font-semibold truncate capitalize ${selectedId === c.id ? 'text-violet-700' : 'text-gray-900'}`}>
+                      {c.axis} <span className="font-normal text-gray-500">· {c.score}</span>
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">{c.products_count ?? 0} product{c.products_count === 1 ? '' : 's'}</p>
                   </div>
-                ) : (
-                  <span className="text-xs text-gray-400 flex items-center gap-1.5"><Gauge size={12} /> Coverage data unavailable</span>
-                )}
+                  <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(c); }} className="text-gray-300 hover:text-red-500 text-lg leading-none flex-shrink-0 pl-2">×</button>
+                </div>
+              ))
+            )}
+          </div>
+          {pagination && (
+            <div className="px-4 py-3 border-t border-gray-100 flex-shrink-0">
+              <Pagination meta={pagination} onPageChange={setCurrentPage} compact />
+            </div>
+          )}
+          <div className="p-4 border-t border-gray-100 flex-shrink-0 space-y-2">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">New Characteristic</p>
+            <div className="flex gap-2">
+              <input list="known-axes" type="text" value={newAxis.axis}
+                onChange={(e) => setNewAxis((a) => ({ ...a, axis: e.target.value }))}
+                placeholder="Axis, e.g. Oaky" className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+              <input type="number" min="0" max="10" value={newAxis.score}
+                onChange={(e) => setNewAxis((a) => ({ ...a, score: e.target.value }))}
+                placeholder="0–10" className="w-24 px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+            </div>
+            <datalist id="known-axes">
+              {knownAxes.map((a) => <option key={a} value={a} />)}
+            </datalist>
+            <button onClick={handleAddNew} disabled={mutationLoading}
+              className="w-full py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
+              {mutationLoading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add Characteristic
+            </button>
+          </div>
+        </div>
+
+        {/* DETAIL PANEL */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-card max-h-[calc(100vh-220px)] overflow-y-auto">
+          {!selected ? (
+            <div className="flex items-center justify-center h-full py-20 text-sm text-gray-400">Select a characteristic to view details.</div>
+          ) : (
+            <div className="p-6">
+              <h3 className="text-lg font-bold text-gray-900 mb-1">Characteristic Details</h3>
+              <p className="text-xs text-gray-400 mb-5">{selected.products_count ?? 0} product{selected.products_count === 1 ? '' : 's'} carry this score</p>
+              {builtInDescription(detail.axis) && (
+                <p className="text-xs text-violet-600 bg-violet-50 border border-violet-100 rounded-md px-3 py-2 mb-5">{builtInDescription(detail.axis)}</p>
+              )}
+              <div className="grid grid-cols-2 gap-x-4 gap-y-5 text-sm">
+                <div>
+                  <label className="block font-medium text-gray-700 mb-1.5">Axis <span className="text-red-500">*</span></label>
+                  <input list="known-axes" type="text" value={detail.axis}
+                    onChange={(e) => setDetail((p) => ({ ...p, axis: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+                </div>
+                <div>
+                  <label className="block font-medium text-gray-700 mb-1.5">Score <span className="text-red-500">*</span></label>
+                  <input type="number" min="0" max="10" value={detail.score}
+                    onChange={(e) => setDetail((p) => ({ ...p, score: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+                </div>
+              </div>
+              <div className="flex justify-end mt-6">
+                <button onClick={handleSave} disabled={mutationLoading}
+                  className="px-5 py-2 bg-gray-900 text-white text-sm font-semibold rounded-md hover:bg-gray-800 disabled:opacity-50 flex items-center gap-2">
+                  {mutationLoading && <Loader2 size={14} className="animate-spin" />} Save Changes
+                </button>
               </div>
             </div>
-          );
-        })}
+          )}
+        </div>
       </div>
+
+      <ConfirmDeleteModal
+        isOpen={!!deleteTarget}
+        isDeleting={mutationLoading}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={executeDelete}
+        title="Remove Characteristic"
+        message={`Remove "${deleteTarget?.axis}: ${deleteTarget?.score}"? ${deleteTarget?.products_count ? `${deleteTarget.products_count} product(s) currently carry it.` : ''}`}
+      />
     </div>
   );
 };

@@ -87,14 +87,29 @@ const OrderDetail = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {(order.items || []).map((item, idx) => (
-                <tr key={item.id || idx}>
-                  <td className="py-3.5 px-5 font-medium text-gray-900">{item.product_name}</td>
-                  <td className="py-3.5 px-5 text-right text-gray-600">{formatCedis(item.price)}</td>
-                  <td className="py-3.5 px-5 text-right text-gray-600">{item.quantity || 1}</td>
-                  <td className="py-3.5 px-5 text-right font-semibold text-gray-900">{formatCedis((item.price || 0) * (item.quantity || 1))}</td>
-                </tr>
-              ))}
+              {(order.items || []).length === 0 ? (
+                <tr><td colSpan={4} className="py-8 px-5 text-center text-sm text-gray-400">No items on this order.</td></tr>
+              ) : (order.items || []).map((item, idx) => {
+                const name = item.product?.name || item.product_name || item.name || 'Unknown product';
+                const image = item.product?.primary_image?.image_url || item.product?.images?.[0]?.image_url;
+                return (
+                  <tr key={item.id || idx}>
+                    <td className="py-3.5 px-5 font-medium text-gray-900">
+                      <div className="flex items-center gap-3">
+                        {image ? (
+                          <img src={image} alt={name} className="w-9 h-9 rounded-md object-contain bg-white border border-gray-100 flex-shrink-0" />
+                        ) : (
+                          <span className="w-9 h-9 rounded-md bg-gray-50 border border-gray-100 flex-shrink-0" />
+                        )}
+                        <span>{name}{item.variant?.name ? ` — ${item.variant.name}` : ''}</span>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-5 text-right text-gray-600">{formatCedis(item.price)}</td>
+                    <td className="py-3.5 px-5 text-right text-gray-600">{item.quantity || 1}</td>
+                    <td className="py-3.5 px-5 text-right font-semibold text-gray-900">{formatCedis((item.price || 0) * (item.quantity || 1))}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           <div className="p-5 space-y-2 text-sm border-t border-gray-100">

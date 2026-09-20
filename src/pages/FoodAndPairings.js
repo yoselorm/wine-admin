@@ -28,6 +28,7 @@ import Badge from '../components/ui/Badge';
 import Switch from '../components/ui/Switch';
 import Pagination from '../components/Pagination';
 import RichTextEditor from '../components/RichTextEditor';
+import ImagePreview from '../components/ImagePreview';
 import { paginateLocal } from '../utils/paginateLocal';
 
 const ATTRIBUTE_TYPES = ['flavour', 'texture', 'aroma', 'colour', 'finish', 'pairing'];
@@ -271,10 +272,9 @@ const FoodAndPairings = () => {
                 <h3 className="text-lg font-bold text-gray-900 mb-5">Dish Details</h3>
                 <div className="flex gap-5">
                   <div className="flex-shrink-0">
-                    <label className="w-24 h-24 border-2 border-dashed border-gray-200 rounded-md flex items-center justify-center text-xs text-gray-400 cursor-pointer hover:border-violet-300 text-center overflow-hidden">
-                      {detail.image_url && typeof detail.image_url === 'string' ? (
-                        <img src={detail.image_url} alt="" className="w-full h-full object-cover" />
-                      ) : 'Upload photo'}
+                    <label className="w-24 h-24 border-2 border-dashed border-gray-200 rounded-md flex items-center justify-center text-xs text-gray-400 cursor-pointer hover:border-violet-300 text-center overflow-hidden bg-white">
+                      <ImagePreview file={detail.image_url} className="w-full h-full object-cover" alt="" />
+                      {!detail.image_url && 'Upload photo'}
                       <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && setDetail((p) => ({ ...p, image_url: e.target.files[0] }))} />
                     </label>
                     <span className="block text-center text-xs text-violet-600 font-medium mt-1.5">Change</span>

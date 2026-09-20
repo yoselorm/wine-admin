@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Send, Loader2, Plus, Bot, User, Gauge, MessageSquareText } from 'lucide-react';
+import { Send, Loader2, Plus, Bot, User, Gauge, MessageSquareText, Search } from 'lucide-react';
 import {
   testSommelier,
   fetchSommelierTests,
@@ -9,6 +9,7 @@ import {
   startNewSession,
   clearSommelierErrors,
 } from '../redux/SommelierSlice';
+import { fetchCustomers } from '../redux/CustomerSlice';
 import toast from '../components/Toast';
 import Card from '../components/ui/Card';
 import Badge from '../components/ui/Badge';
@@ -28,14 +29,17 @@ const SommelierTester = () => {
     stats, statsLoading,
     replayLoading,
   } = useSelector((state) => state.sommelier);
+  const { customers } = useSelector((state) => state.customers || { customers: [] });
 
   const [prompt, setPrompt] = useState('');
   const [asUserId, setAsUserId] = useState('');
+  const [customerSearch, setCustomerSearch] = useState('');
   const scrollRef = useRef(null);
 
   useEffect(() => {
     dispatch(fetchSommelierTests());
     dispatch(fetchSommelierTestStats());
+    dispatch(fetchCustomers({ per_page: 200 }));
     if (!activeSessionId) dispatch(startNewSession(newSessionId()));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dispatch]);
@@ -238,11 +242,25 @@ const SommelierTester = () => {
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Borrow customer profile</label>
-            <input
-              type="text" value={asUserId} onChange={(e) => setAsUserId(e.target.value)}
-              placeholder="Customer ID (optional)"
-              className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500"
-            />
+            <div className="relative mb-1.5">
+              <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-300" />
+              <input
+                type="text" value={customerSearch} onChange={(e) => setCustomerSearch(e.target.value)}
+                placeholder="Search customers..."
+                className="w-full pl-6 pr-2.5 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500"
+              />
+            </div>
+            <select value={asUserId} onChange={(e) => setAsUserId(e.target.value)}
+              className="w-full px-2.5 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500">
+              <option value="">None — no profile</option>
+              {customers
+                ?.filter((c) => !customerSearch || `${c.first_name || ''} ${c.last_name || ''} ${c.email || ''}`.toLowerCase().includes(customerSearch.toLowerCase()))
+                .map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.first_name || c.name} {c.last_name || ''} — {c.email}
+                  </option>
+                ))}
+            </select>
             <p className="text-[11px] text-gray-400 mt-1">Loads their taste profile read-only, for the next message.</p>
           </div>
           {!lastDiagnostics ? (

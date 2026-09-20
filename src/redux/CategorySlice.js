@@ -77,7 +77,10 @@ export const updateCategory = createAsyncThunk(
       let response;
       
       if (hasFile) {
+        // PHP never populates uploaded files on PUT/PATCH bodies, so multipart updates must go
+        // over POST with Laravel's _method spoof field to still hit the PUT route/controller.
         const payload = prepareFormData(categoryData);
+        payload.append('_method', 'PUT');
         response = await api.post(`${api_url}/v1/admin/categories/${id}`, payload, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
