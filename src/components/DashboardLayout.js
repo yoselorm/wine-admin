@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { logoutAdmin } from '../redux/AuthSlice';
 import { getAdminRoleNames, getAdminPermissionNames } from '../utils/permissions';
 
@@ -13,6 +13,11 @@ const DashboardLayout = () => {
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
+  // The products list wants more room for its table columns — widen just that page rather
+  // than the shared max-width, which would also stretch the product form back out after it
+  // was deliberately narrowed.
+  const isWidePage = location.pathname === '/dashboard/products';
 
   const { admin, loading } = useSelector((state) => state.auth);
   const roles = getAdminRoleNames(admin);
@@ -52,7 +57,7 @@ const DashboardLayout = () => {
 
         {/* Dynamic Nested Route Rendering Console */}
         <main className="flex-1 min-h-0 overflow-y-auto">
-          <div className="max-w-content w-full mx-auto p-8 animate-fade-in">
+          <div className={`${isWidePage ? 'max-w-content-wide' : 'max-w-content'} w-full mx-auto p-8 animate-fade-in`}>
             <Outlet />
           </div>
         </main>

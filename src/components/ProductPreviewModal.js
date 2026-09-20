@@ -21,9 +21,12 @@ const toPercent = (raw) => {
   return n <= 1 ? n * 100 : (n / 10) * 100;
 };
 
+// The writable field is `characteristics` ({axis, score}); `wine_attributes`
+// ({attribute_type, value}) is an older/separate shape some responses may still carry.
 const findScore = (attributes, axis) => {
-  const hit = attributes?.find((a) => a.attribute_type === axis);
-  return hit ? toPercent(hit.value) : null;
+  const hit = attributes?.find((a) => (a.axis ?? a.attribute_type) === axis);
+  if (!hit) return null;
+  return toPercent(hit.score ?? hit.value);
 };
 
 const sliderPosition = (attributes, { axis, invertAxis }) => {
@@ -52,7 +55,7 @@ const ProductPreviewModal = ({ isOpen, onClose, loading, error, message, product
 
   const images = product?.images || [];
   const isLive = /live on the storefront/i.test(message || '');
-  const attributes = product?.wine_attributes || product?.characteristics || [];
+  const attributes = product?.characteristics || product?.wine_attributes || [];
   const pairings = product?.pairings || [];
   const rating = product?.average_rating;
   const reviewsCount = product?.reviews_count ?? product?.reviews?.length ?? 0;

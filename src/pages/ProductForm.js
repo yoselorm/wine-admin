@@ -32,7 +32,7 @@ import toast from "../components/Toast";
 
 const PICKER_PAGE_SIZE = 10;
 
-const WINE_ATTRIBUTE_TYPES = ["bold", "dry", "acidity", "tannic", "soft", "light", "fizzy", "sweet"];
+const TASTING_AXES = ["bold", "dry", "acidity", "tannic", "soft", "light", "fizzy", "sweet"];
 const WINE_COLOURS = ["Red", "White", "Rosé", "Sparkling", "Dessert"];
 
 // Matches the types settable on the category form (frontend.md §8/§4.10) — pick a type first,
@@ -60,15 +60,18 @@ const initialFormState = {
   is_published: true,
   is_featured: false,
   brand_id: "",
+  vintage: "",
+  alcohol_abv: "",
   weight: "",
   length: "",
   width: "",
   height: "",
   category_ids: [],
-  wineRegion_ids: [],
+  region_ids: [],
   blog_ids: [],
   variants: [],
   images: [],
+  characteristics: [],
   wine_attributes: [],
   pairings: [],
 };
@@ -122,8 +125,9 @@ const ProductForm = () => {
   const [regionPage, setRegionPage] = useState(1);
   const [regionCache, setRegionCache] = useState({});
   const [blogSearch, setBlogSearch] = useState("");
-  const [attrDraft, setAttrDraft] = useState({ type: "bold", value: "5" });
-  const [pairingDraft, setPairingDraft] = useState({ dish_id: "", reason: "" });
+  const [axisDraft, setAxisDraft] = useState({ axis: "bold", score: "5" });
+  const [wineAttrDraft, setWineAttrDraft] = useState({ attribute_type: "", value: "" });
+  const [pairingDraft, setPairingDraft] = useState({ dish_id: "", reason: "", pairing_type: "international" });
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [aiInput, setAiInput] = useState(initialDraftInput);
@@ -182,9 +186,10 @@ const ProductForm = () => {
         ...initialFormState,
         ...currentProduct,
         category_ids: extractIds(currentProduct.category_ids, currentProduct.categories),
-        wineRegion_ids: extractIds(currentProduct.wineRegion_ids, currentProduct.wine_regions || currentProduct.regions),
+        region_ids: extractIds(currentProduct.region_ids, currentProduct.wine_regions || currentProduct.regions),
         blog_ids: extractIds(currentProduct.blog_ids, currentProduct.blogs || currentProduct.posts),
         variants: currentProduct.variants || [],
+        characteristics: currentProduct.characteristics || [],
         wine_attributes: currentProduct.wine_attributes || [],
         pairings: currentProduct.pairings || [],
         images: (currentProduct.images || []).map((img) => ({ ...img, is_upload: false, file: null })),
@@ -205,7 +210,7 @@ const ProductForm = () => {
         });
       }
       if (!dishes.find((d) => d.id === pairingDraft.dish_id)) {
-        setPairingDraft((p) => ({ ...p, dish_id: dishes[0]?.id || "" }));
+        setPairingDraft((p) => ({ ...p, dish_id: dishes[0]?.id || "", pairing_type: dishes[0]?.is_local ? "local" : "international" }));
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -213,7 +218,7 @@ const ProductForm = () => {
 
   useEffect(() => {
     if (!pairingDraft.dish_id && dishes?.length) {
-      setPairingDraft((p) => ({ ...p, dish_id: dishes[0].id }));
+      setPairingDraft((p) => ({ ...p, dish_id: dishes[0].id, pairing_type: dishes[0].is_local ? "local" : "international" }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dishes]);
@@ -274,15 +279,27 @@ const ProductForm = () => {
     setFormData((prev) => ({ ...prev, [field]: prev[field].filter((_, i) => i !== index) }));
   };
 
-  const handleAddAttribute = () => {
-    if (!attrDraft.type) return;
+  const handleAddCharacteristic = () => {
+    if (!axisDraft.axis) return;
+    setFormData((prev) => ({
+      ...prev,
+      characteristics: [
+        ...prev.characteristics.filter((c) => c.axis !== axisDraft.axis),
+        { axis: axisDraft.axis, score: Number(axisDraft.score) },
+      ],
+    }));
+  };
+
+  const handleAddWineAttribute = () => {
+    if (!wineAttrDraft.attribute_type.trim() || !wineAttrDraft.value.trim()) return;
     setFormData((prev) => ({
       ...prev,
       wine_attributes: [
-        ...prev.wine_attributes.filter((a) => a.attribute_type !== attrDraft.type),
-        { attribute_type: attrDraft.type, value: attrDraft.value },
+        ...prev.wine_attributes.filter((a) => a.attribute_type !== wineAttrDraft.attribute_type),
+        { ...wineAttrDraft },
       ],
     }));
+    setWineAttrDraft({ attribute_type: "", value: "" });
   };
 
   const handleAddPairing = () => {
@@ -307,15 +324,21 @@ const ProductForm = () => {
       const draft = result.payload?.draft || {};
       setFormData((prev) => {
         const next = { ...prev };
+        // The admin already typed these in to help the AI draft the copy — carry them over
+        // rather than making them re-enter the same facts in the fields below.
+        if (!prev.vintage && aiInput.vintage) next.vintage = aiInput.vintage;
+        if (!prev.alcohol_abv && aiInput.alcohol_abv) next.alcohol_abv = aiInput.alcohol_abv;
         if (draft.description) next.description = draft.description;
         if (draft.pairing_notes) next.pairing_notes = draft.pairing_notes;
         if (draft.local_pairing_notes) next.local_pairing_notes = draft.local_pairing_notes;
         if (draft.producer_notes) next.producer_notes = draft.producer_notes;
         if (Array.isArray(draft.characteristics) && draft.characteristics.length > 0) {
           const axesInDraft = draft.characteristics.map((c) => c.axis);
-          next.wine_attributes = [
-            ...prev.wine_attributes.filter((a) => !axesInDraft.includes(a.attribute_type)),
-            ...draft.characteristics.map((c) => ({ attribute_type: c.axis, value: c.score })),
+          next.characteristics = [
+            ...prev.characteristics.filter((c) => !axesInDraft.includes(c.axis)),
+            // The draft's score sometimes arrives as a 0–1 fraction rather than the 0–10 scale
+            // the field actually validates against (and the manual picker below uses) — normalize.
+            ...draft.characteristics.map((c) => ({ axis: c.axis, score: c.score <= 1 ? c.score * 10 : c.score })),
           ];
         }
         return next;
@@ -370,7 +393,7 @@ const ProductForm = () => {
   // and `regions` are already just the page being browsed — no client-side filtering needed.
   const filteredBlogs = blogs?.filter((b) => b.title.toLowerCase().includes(blogSearch.toLowerCase())) || [];
   const selectedCategories = formData.category_ids.map((cid) => categoryCache[cid]).filter(Boolean);
-  const selectedRegions = formData.wineRegion_ids.map((rid) => regionCache[rid]).filter(Boolean);
+  const selectedRegions = formData.region_ids.map((rid) => regionCache[rid]).filter(Boolean);
 
   if (isEditing && loading && !currentProduct) {
     return (
@@ -382,7 +405,7 @@ const ProductForm = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="w-full lg:w-3/4 mx-auto">
       <button
         onClick={() => navigate("/dashboard/products")}
         className="flex items-center gap-1.5 text-sm font-medium text-violet-600 hover:text-violet-700 mb-3"
@@ -489,6 +512,18 @@ const ProductForm = () => {
                 {brands?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
+            <div>
+              <label className="block font-medium text-gray-700 mb-1.5">Vintage</label>
+              <input type="number" placeholder="e.g. 2019" value={formData.vintage}
+                onChange={(e) => setFormData((p) => ({ ...p, vintage: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+            </div>
+            <div>
+              <label className="block font-medium text-gray-700 mb-1.5">Alcohol ABV %</label>
+              <input type="number" step="0.1" placeholder="e.g. 13.5" value={formData.alcohol_abv}
+                onChange={(e) => setFormData((p) => ({ ...p, alcohol_abv: e.target.value }))}
+                className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+            </div>
             <div className="col-span-2">
               <label className="block font-medium text-gray-700 mb-1.5">Short Description</label>
               <RichTextEditor value={formData.short_description || ""} onChange={(html) => setFormData((p) => ({ ...p, short_description: html }))}
@@ -593,7 +628,7 @@ const ProductForm = () => {
               {selectedRegions.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-2.5 pb-2.5 border-b border-gray-100">
                   {selectedRegions.map((r) => (
-                    <button key={r.id} type="button" onClick={() => toggleSelection("wineRegion_ids", r.id)}
+                    <button key={r.id} type="button" onClick={() => toggleSelection("region_ids", r.id)}
                       className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 text-xs font-medium bg-violet-50 text-violet-700 border border-violet-100 rounded-full hover:bg-violet-100">
                       {r.name}
                       <X size={11} />
@@ -607,7 +642,7 @@ const ProductForm = () => {
                   <p className="text-xs text-gray-400 italic py-1">No regions match.</p>
                 ) : (
                   regions.map((r) => (
-                    <Pill key={r.id} active={formData.wineRegion_ids.includes(r.id)} onClick={() => toggleSelection("wineRegion_ids", r.id)}>
+                    <Pill key={r.id} active={formData.region_ids.includes(r.id)} onClick={() => toggleSelection("region_ids", r.id)}>
                       {r.name}
                     </Pill>
                   ))
@@ -722,21 +757,44 @@ const ProductForm = () => {
         </Card>
 
         <Card title="Wine Characteristics">
-          <p className="text-xs text-gray-400 mb-3">Scored 0–10 · one score per attribute; adding again replaces it.</p>
+          <p className="text-xs text-gray-400 mb-3">Scored 0–10 · one score per axis; adding again replaces it. Merged with any existing scores on save, not replaced wholesale.</p>
           <div className="flex items-center gap-2 mb-3">
-            <select value={attrDraft.type} onChange={(e) => setAttrDraft((d) => ({ ...d, type: e.target.value }))}
+            <select value={axisDraft.axis} onChange={(e) => setAxisDraft((d) => ({ ...d, axis: e.target.value }))}
               className="px-3 py-2 border border-gray-200 rounded-md bg-white text-sm focus:outline-none focus:border-violet-500">
-              {WINE_ATTRIBUTE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+              {TASTING_AXES.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
-            <input type="number" min="0" max="10" placeholder="0–10" value={attrDraft.value}
-              onChange={(e) => setAttrDraft((d) => ({ ...d, value: e.target.value }))}
+            <input type="number" min="0" max="10" placeholder="0–10" value={axisDraft.score}
+              onChange={(e) => setAxisDraft((d) => ({ ...d, score: e.target.value }))}
               className="w-24 px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-violet-500" />
-            <Button type="button" size="sm" appearance="secondary" onClick={handleAddAttribute}>Add</Button>
+            <Button type="button" size="sm" appearance="secondary" onClick={handleAddCharacteristic}>Add</Button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {formData.characteristics?.map((c, index) => (
+              <span key={index} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 text-sm text-gray-700">
+                {c.axis} {c.score}
+                <button type="button" onClick={() => removeNestedObjectItem(index, "characteristics")} className="text-gray-400 hover:text-red-500">
+                  <X size={12} />
+                </button>
+              </span>
+            ))}
+          </div>
+        </Card>
+
+        <Card title="Wine Attributes">
+          <p className="text-xs text-gray-400 mb-3">Free-form facts — closure type, residual sugar, oak treatment... whatever doesn't fit a tasting score. Adding the same attribute again replaces it.</p>
+          <div className="flex items-center gap-2 mb-3">
+            <input type="text" placeholder="Attribute, e.g. Closure" value={wineAttrDraft.attribute_type}
+              onChange={(e) => setWineAttrDraft((d) => ({ ...d, attribute_type: e.target.value }))}
+              className="px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-violet-500 w-44" />
+            <input type="text" placeholder="Value, e.g. Screwcap" value={wineAttrDraft.value}
+              onChange={(e) => setWineAttrDraft((d) => ({ ...d, value: e.target.value }))}
+              className="flex-1 px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-violet-500" />
+            <Button type="button" size="sm" appearance="secondary" onClick={handleAddWineAttribute}>Add</Button>
           </div>
           <div className="flex flex-wrap gap-2">
             {formData.wine_attributes?.map((attr, index) => (
               <span key={index} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-100 text-sm text-gray-700">
-                {attr.attribute_type} {attr.value}
+                <span className="text-gray-500">{attr.attribute_type}:</span> {attr.value}
                 <button type="button" onClick={() => removeNestedObjectItem(index, "wine_attributes")} className="text-gray-400 hover:text-red-500">
                   <X size={12} />
                 </button>
@@ -747,9 +805,18 @@ const ProductForm = () => {
 
         <Card title="Food Pairings">
           <div className="flex items-center gap-2">
-            <select value={pairingDraft.dish_id} onChange={(e) => setPairingDraft((d) => ({ ...d, dish_id: e.target.value }))}
+            <select value={pairingDraft.dish_id}
+              onChange={(e) => {
+                const dish = dishes?.find((d) => d.id === e.target.value);
+                setPairingDraft((d) => ({ ...d, dish_id: e.target.value, pairing_type: dish?.is_local ? "local" : "international" }));
+              }}
               className="px-3 py-2 border border-gray-200 rounded-md bg-white text-sm focus:outline-none focus:border-violet-500 min-w-[160px]">
               {dishes?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+            </select>
+            <select value={pairingDraft.pairing_type} onChange={(e) => setPairingDraft((d) => ({ ...d, pairing_type: e.target.value }))}
+              className="px-3 py-2 border border-gray-200 rounded-md bg-white text-sm focus:outline-none focus:border-violet-500">
+              <option value="international">International</option>
+              <option value="local">Local</option>
             </select>
             <input type="text" placeholder="Why it works (optional)" value={pairingDraft.reason}
               onChange={(e) => setPairingDraft((d) => ({ ...d, reason: e.target.value }))}
@@ -759,8 +826,13 @@ const ProductForm = () => {
           <div className="space-y-2 mt-3">
             {formData.pairings?.map((pair, index) => (
               <div key={index} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-md text-sm">
-                <div>
+                <div className="flex items-center gap-2">
                   <span className="font-semibold text-gray-800">{dishes?.find((d) => d.id === pair.dish_id)?.name || pair.dish_id}</span>
+                  {pair.pairing_type && (
+                    <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${
+                      pair.pairing_type === "local" ? "bg-green-50 text-green-700" : "bg-sky-50 text-sky-700"
+                    }`}>{pair.pairing_type}</span>
+                  )}
                   {pair.reason && <span className="text-gray-500"> — {pair.reason}</span>}
                 </div>
                 <button type="button" onClick={() => removeNestedObjectItem(index, "pairings")} className="text-gray-400 hover:text-red-500">

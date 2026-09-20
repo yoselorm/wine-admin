@@ -309,12 +309,12 @@ const ProductDetailPage = () => {
                   <Wine size={13} className="text-gray-400" />
                   Wine Characteristics
                 </h3>
-                {product.wine_attributes && product.wine_attributes.length > 0 ? (
+                {(product.characteristics || product.wine_attributes)?.length > 0 ? (
                   <div className="space-y-1.5">
-                    {product.wine_attributes.map((attr, i) => (
+                    {(product.characteristics || product.wine_attributes).map((attr, i) => (
                       <div key={i} className="flex justify-between items-center py-1 border-b border-gray-100 last:border-0">
-                        <span className="text-gray-400 font-medium capitalize">{attr.attribute_type?.replace('_', ' ')}</span>
-                        <span className="font-bold text-gray-900 bg-gray-50 border px-2 py-0.5 rounded-md">{attr.value}</span>
+                        <span className="text-gray-400 font-medium capitalize">{(attr.axis ?? attr.attribute_type)?.replace('_', ' ')}</span>
+                        <span className="font-bold text-gray-900 bg-gray-50 border px-2 py-0.5 rounded-md">{attr.score ?? attr.value}</span>
                       </div>
                     ))}
                   </div>

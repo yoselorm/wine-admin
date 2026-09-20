@@ -130,6 +130,7 @@ const Products = () => {
                 <tbody className="divide-y divide-gray-100">
                   {products.map((prod) => {
                     const status = statusInfo(prod);
+                    const primaryImage = prod.images?.find((img) => img.is_primary) || prod.images?.[0];
                     return (
                       <tr
                         key={prod.id}
@@ -138,7 +139,15 @@ const Products = () => {
                       >
                         <td className="py-4 px-6">
                           <div className="flex items-center gap-3">
-                            <span className="w-6 h-6 rounded-full flex-shrink-0" style={{ backgroundColor: swatchColor(prod) }} />
+                            {primaryImage?.image_url ? (
+                              <span className="w-11 h-11 rounded-full flex-shrink-0 bg-white border border-gray-100 overflow-hidden flex items-center justify-center p-1">
+                                <img src={primaryImage.image_url} alt={primaryImage.alt_text || prod.name}
+                                  className="w-full h-full object-contain" />
+                              </span>
+                            ) : (
+                              <span className="w-11 h-11 rounded-full flex-shrink-0 flex items-center justify-center"
+                                style={{ backgroundColor: swatchColor(prod) }} />
+                            )}
                             <div>
                               <div className="font-semibold text-gray-900">{prod.name}</div>
                               <div className="text-xs text-gray-400 mt-0.5">{prod.brand?.name || '—'}</div>

@@ -69,6 +69,7 @@ module.exports = {
       },
       maxWidth: {
         content: '1216px',
+        'content-wide': '1440px',
       },
       keyframes: {
         'slide-in': {
