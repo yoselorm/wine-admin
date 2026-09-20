@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { createPortal } from 'react-dom';
 import { Loader2, X, Search } from 'lucide-react';
+import InsightAlert from '../components/InsightAlert';
 import {
   fetchCatalogueInsights,
   fetchFacet,
@@ -17,7 +18,7 @@ const DIMENSION_LABEL = {
   brand: 'Brand', price_band: 'Price Band', axis: 'Tasting Axis', dish: 'Dish', pairing_type: 'Pairing Type',
 };
 const label = (dim) => DIMENSION_LABEL[dim] || dim.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-const humanizeStat = (key) => key.replace(/^total_/, '').replace(/_/g, ' ').toUpperCase();
+const humanizeStat = (key) => key.replace(/^total_/, '').replace(/_categories$/, '').replace(/_/g, ' ').toUpperCase();
 
 const STATUS_TONE = { 'Too thin': 'red', Patchy: 'yellow', Good: 'green' };
 const axisStatus = (pct) => (pct < 20 ? 'Too thin' : pct < 50 ? 'Patchy' : 'Good');
@@ -94,7 +95,9 @@ const FacetCard = ({ dimension, summary }) => {
   const [search, setSearch] = useState('');
   const [drill, setDrill] = useState(null);
 
-  const values = summary?.values || [];
+  // The catalogue summary lists its top few under `top`; the dedicated full-facet endpoint
+  // (fetched on "All N →") lists everything under `values` — different endpoints, different key.
+  const values = summary?.top || summary?.values || [];
   const showingFull = showFull && fullFacet?.dimension === dimension;
   const listSource = showingFull ? fullFacet.values || [] : values;
   const filtered = search ? listSource.filter((v) => v.label.toLowerCase().includes(search.toLowerCase())) : listSource;
@@ -165,10 +168,21 @@ const InsightsCatalogue = () => {
   useEffect(() => { dispatch(fetchCatalogueInsights()); }, [dispatch]);
   useEffect(() => { if (error) toast.error(error); }, [error]);
 
-  const dimensionKeys = data ? Object.keys(data).filter((k) => data[k] && typeof data[k] === 'object' && Array.isArray(data[k].values)) : [];
+  // Real shape: { totals: { wines, brands, ... }, dimensions: { colour: { total, top }, ... } }.
+  const dimensions = data?.dimensions || {};
+  const dimensionKeys = Object.keys(dimensions).filter((k) => Array.isArray(dimensions[k]?.top) || Array.isArray(dimensions[k]?.values));
   const facetKeys = dimensionKeys.filter((k) => k !== 'axis');
-  const axisSummary = data?.axis;
-  const statEntries = data ? Object.entries(data).filter(([, v]) => typeof v === 'number') : [];
+  const axisSummary = dimensions.axis;
+  const statEntries = data?.totals ? Object.entries(data.totals).filter(([, v]) => typeof v === 'number') : [];
+  const totalWines = data?.totals?.wines;
+
+  useEffect(() => {
+    if (data && dimensionKeys.length === 0 && statEntries.length === 0) {
+      // eslint-disable-next-line no-console
+      console.warn('[InsightsCatalogue] /insights/catalogue responded but no field matched the expected shape:', data);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   return (
     <div className="space-y-5">
@@ -179,7 +193,16 @@ const InsightsCatalogue = () => {
 
       {loading && !data ? (
         <div className="flex justify-center py-16"><Loader2 className="animate-spin text-gray-400" size={22} /></div>
-      ) : !data ? null : (
+      ) : error ? (
+        <InsightAlert title="Couldn't load the catalogue">{error}</InsightAlert>
+      ) : !data ? (
+        <p className="text-sm text-gray-400 py-10 text-center">No catalogue data returned yet.</p>
+      ) : dimensionKeys.length === 0 && statEntries.length === 0 ? (
+        <InsightAlert tone="yellow" title="The endpoint responded, but nothing on this page recognised it">
+          Expected top-level number fields for the stat tiles and objects shaped like
+          {' '}<code className="font-mono">{'{ values: [...] }'}</code> per dimension. The raw response is logged to the console.
+        </InsightAlert>
+      ) : (
         <>
           {statEntries.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-4 xl:grid-cols-8 gap-4">
@@ -193,10 +216,10 @@ const InsightsCatalogue = () => {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            {facetKeys.map((dim) => <FacetCard key={dim} dimension={dim} summary={data[dim]} />)}
+            {facetKeys.map((dim) => <FacetCard key={dim} dimension={dim} summary={dimensions[dim]} />)}
           </div>
 
-          {axisSummary?.values?.length > 0 && (
+          {(axisSummary?.top?.length > 0 || axisSummary?.values?.length > 0) && (
             <div className="bg-white border border-gray-200 rounded-xl shadow-card overflow-hidden">
               <div className="px-5 py-4 border-b border-gray-100">
                 <h3 className="text-sm font-bold text-gray-900">Tasting Axes</h3>
@@ -215,8 +238,8 @@ const InsightsCatalogue = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {axisSummary.values.map((v) => {
-                    const pct = Math.round((v.wines / (data.total_wines || v.wines || 1)) * 100);
+                  {(axisSummary.top || axisSummary.values).map((v) => {
+                    const pct = Math.round((v.wines / (totalWines || v.wines || 1)) * 100);
                     const status = axisStatus(pct);
                     return (
                       <tr key={v.label} className="hover:bg-gray-50 cursor-pointer"
@@ -227,7 +250,7 @@ const InsightsCatalogue = () => {
                             <span className={`block h-full rounded-full ${status === 'Too thin' ? 'bg-red-400' : status === 'Patchy' ? 'bg-yellow-400' : 'bg-green-500'}`} style={{ width: `${pct}%` }} />
                           </span>
                         </td>
-                        <td className="px-4 py-2.5 text-right text-gray-600">{v.wines}{data.total_wines ? ` of ${data.total_wines}` : ''}</td>
+                        <td className="px-4 py-2.5 text-right text-gray-600">{v.wines}{totalWines ? ` of ${totalWines}` : ''}</td>
                         <td className="px-4 py-2.5 text-right text-gray-600">{v.avg != null ? Number(v.avg).toFixed(1) : '—'}</td>
                         <td className="px-5 py-2.5"><Badge tone={STATUS_TONE[status]}>{status}</Badge></td>
                       </tr>

@@ -101,7 +101,7 @@ const Brands = () => {
                     <p className="text-xs text-gray-400 mt-0.5">/{b.slug}</p>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0 pl-2">
-                    <span className="text-xs text-gray-400 whitespace-nowrap">{b.product_count ?? 0} products</span>
+                    <span className="text-xs text-gray-400 whitespace-nowrap">{b.products_count ?? 0} products</span>
                     <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(b); }} className="text-gray-300 hover:text-red-500 text-lg leading-none">×</button>
                   </div>
                 </div>

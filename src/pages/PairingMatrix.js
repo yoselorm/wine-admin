@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react';
 import { fetchPairingsMatrix } from '../redux/InsightsSlice';
 import toast from '../components/Toast';
 import Badge from '../components/ui/Badge';
+import InsightAlert from '../components/InsightAlert';
 
 const TABS = [
   ['all', 'All'],
@@ -24,6 +25,15 @@ const PairingMatrix = () => {
   const colours = data?.colours || [];
   const dishes = data?.dishes || [];
   const summary = data?.summary;
+  const unrecognized = data && colours.length === 0 && dishes.length === 0;
+
+  useEffect(() => {
+    if (unrecognized) {
+      // eslint-disable-next-line no-console
+      console.warn('[PairingMatrix] /insights/pairings/matrix responded but no field matched the expected shape:', data);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   const rows = useMemo(() => dishes
     .filter((d) => tab === 'all' ? true : tab === 'local' ? d.is_local : tab === 'intl' ? !d.is_local : d.is_thin)
@@ -40,14 +50,22 @@ const PairingMatrix = () => {
 
       {loading && !data ? (
         <div className="flex justify-center py-16"><Loader2 className="animate-spin text-gray-400" size={22} /></div>
-      ) : !data ? null : (
+      ) : error ? (
+        <InsightAlert title="Couldn't load the pairing matrix">{error}</InsightAlert>
+      ) : !data ? (
+        <p className="text-sm text-gray-400 py-10 text-center">No pairing data returned yet.</p>
+      ) : unrecognized ? (
+        <InsightAlert tone="yellow" title="The endpoint responded, but nothing on this page recognised it">
+          Expected <code className="font-mono">colours[]</code> and <code className="font-mono">dishes[]</code> arrays. The raw response is logged to the console.
+        </InsightAlert>
+      ) : (
         <>
           {summary && (
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
               {[
                 ['Dishes', summary.dishes, 'in the vocabulary', 'text-gray-900'],
                 ['No wine at all', summary.unpaired, 'pair to nothing', 'text-red-600'],
-                ['Thinly covered', summary.thinly_covered, 'two wines or fewer', 'text-yellow-600'],
+                ['Thinly covered', summary.thinly_covered, `${summary.thin_coverage_threshold ?? 2} wines or fewer`, 'text-yellow-600'],
                 ['Local pairings', summary.local_pairings, 'Ghanaian dishes', 'text-gray-900'],
                 ['International', summary.international_pairings, 'everything else', 'text-gray-900'],
               ].map(([lbl, val, sub, colour]) => (

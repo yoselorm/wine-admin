@@ -4,6 +4,7 @@ import { Loader2, PlayCircle } from 'lucide-react';
 import { fetchCoverage, simulateCoverage, clearSimulation } from '../redux/InsightsSlice';
 import toast from '../components/Toast';
 import Badge from '../components/ui/Badge';
+import InsightAlert from '../components/InsightAlert';
 
 const QuizCoverage = () => {
   const dispatch = useDispatch();
@@ -17,6 +18,15 @@ const QuizCoverage = () => {
 
   const questions = data?.questions || [];
   const blindSpots = data?.blind_spots || [];
+  const unrecognized = data && questions.length === 0;
+
+  useEffect(() => {
+    if (unrecognized) {
+      // eslint-disable-next-line no-console
+      console.warn('[QuizCoverage] /insights/coverage responded but no field matched the expected shape:', data);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   // Budget first, then the rest of the narrowing questions — same order the design uses so the
   // funnel reads top to bottom the way a customer actually answers.
@@ -37,7 +47,15 @@ const QuizCoverage = () => {
 
       {loading && !data ? (
         <div className="flex justify-center py-16"><Loader2 className="animate-spin text-gray-400" size={22} /></div>
-      ) : !data ? null : (
+      ) : error ? (
+        <InsightAlert title="Couldn't load quiz coverage">{error}</InsightAlert>
+      ) : !data ? (
+        <p className="text-sm text-gray-400 py-10 text-center">No coverage data returned yet.</p>
+      ) : unrecognized ? (
+        <InsightAlert tone="yellow" title="The endpoint responded, but nothing on this page recognised it">
+          Expected a <code className="font-mono">questions[]</code> array. The raw response is logged to the console.
+        </InsightAlert>
+      ) : (
         <>
           {blindSpots.length > 0 && (
             <div className="flex items-start gap-3.5 bg-red-50 border border-red-100 rounded-xl px-4 py-3.5">

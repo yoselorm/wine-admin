@@ -87,18 +87,53 @@ const SommelierTester = () => {
       </div>
 
       {stats && !statsLoading && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[
-            ['Total tests', stats.total_tests ?? stats.total ?? '—'],
-            ['Empty retrievals', stats.empty_retrievals ?? '—'],
-            ['Avg. latency', stats.avg_latency_ms != null ? `${Math.round(stats.avg_latency_ms)} ms` : '—'],
-            ['Avg. picked', stats.avg_picked_by_model ?? stats.average_picked_by_model ?? '—'],
-          ].map(([label, value]) => (
-            <Card key={label}>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{label}</p>
-              <p className="text-xl font-bold text-gray-900 mt-1">{value}</p>
-            </Card>
-          ))}
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            {[
+              ['Turns', stats.turns],
+              ['Sessions', stats.sessions],
+              ['Avg. latency', stats.avg_latency_ms != null ? `${Math.round(stats.avg_latency_ms)} ms` : '—'],
+              ['Avg. retrieved', stats.avg_retrieved != null ? Number(stats.avg_retrieved).toFixed(1) : '—'],
+              ['Failures', stats.failures, stats.failures > 0 ? 'text-red-600' : 'text-gray-900'],
+              ['Empty retrievals', stats.empty_retrievals, stats.empty_retrievals > 0 ? 'text-yellow-600' : 'text-gray-900'],
+            ].map(([label, value, tone]) => (
+              <Card key={label}>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{label}</p>
+                <p className={`text-xl font-bold mt-1 ${tone || 'text-gray-900'}`}>{value ?? '—'}</p>
+              </Card>
+            ))}
+          </div>
+
+          {(stats.by_provider?.length > 0 || stats.by_recommendation_type?.length > 0) && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {stats.by_provider?.length > 0 && (
+                <Card title="By Provider">
+                  <div className="space-y-1.5">
+                    {stats.by_provider.map((p) => (
+                      <div key={p.provider} className="flex items-center justify-between text-sm">
+                        <span className="text-gray-700 capitalize">{p.provider}</span>
+                        <span className="text-gray-500">{p.turns} turn{p.turns === 1 ? '' : 's'} · {Math.round(p.avg_latency_ms)} ms avg</span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+              {stats.by_recommendation_type?.length > 0 && (
+                <Card title="By Recommendation Type">
+                  <div className="space-y-1.5">
+                    {stats.by_recommendation_type.map((r) => (
+                      <div key={r.recommendation_type} className="flex items-center justify-between text-sm">
+                        <Badge tone={r.recommendation_type === 'match' ? 'violet' : 'sky'}>
+                          {RECOMMENDATION_LABEL[r.recommendation_type] || r.recommendation_type}
+                        </Badge>
+                        <span className="text-gray-500">{r.turns} turn{r.turns === 1 ? '' : 's'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </Card>
+              )}
+            </div>
+          )}
         </div>
       )}
 

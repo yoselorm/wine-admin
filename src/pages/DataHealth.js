@@ -4,6 +4,7 @@ import { Loader2 } from 'lucide-react';
 import { fetchGaps } from '../redux/InsightsSlice';
 import toast from '../components/Toast';
 import Badge from '../components/ui/Badge';
+import InsightAlert from '../components/InsightAlert';
 
 const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
 const SEVERITY_TONE = { high: 'red', medium: 'yellow', low: 'sky' };
@@ -18,6 +19,15 @@ const DataHealth = () => {
   useEffect(() => { if (error) toast.error(error); }, [error]);
 
   const checks = [...(data?.checks || [])].sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9));
+  const unrecognized = data && checks.length === 0;
+
+  useEffect(() => {
+    if (unrecognized) {
+      // eslint-disable-next-line no-console
+      console.warn('[DataHealth] /insights/gaps responded but no field matched the expected shape:', data);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
 
   return (
     <div className="space-y-5">
@@ -28,7 +38,15 @@ const DataHealth = () => {
 
       {loading && !data ? (
         <div className="flex justify-center py-16"><Loader2 className="animate-spin text-gray-400" size={22} /></div>
-      ) : !data ? null : (
+      ) : error ? (
+        <InsightAlert title="Couldn't load data health checks">{error}</InsightAlert>
+      ) : !data ? (
+        <p className="text-sm text-gray-400 py-10 text-center">No data health checks returned yet.</p>
+      ) : unrecognized ? (
+        <InsightAlert tone="yellow" title="The endpoint responded, but nothing on this page recognised it">
+          Expected a <code className="font-mono">checks[]</code> array. The raw response is logged to the console.
+        </InsightAlert>
+      ) : (
         <>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[

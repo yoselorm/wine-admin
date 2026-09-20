@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Loader2, Info } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { fetchDemand } from '../redux/InsightsSlice';
 import toast from '../components/Toast';
+import InsightAlert from '../components/InsightAlert';
 
 const DemandTable = ({ title, rowLabel, rows }) => (
   <div className="bg-white border border-gray-200 rounded-xl shadow-card overflow-hidden">
@@ -66,13 +67,10 @@ const Demand = () => {
 
       {loading && !data ? (
         <div className="flex justify-center py-16"><Loader2 className="animate-spin text-gray-400" size={22} /></div>
+      ) : error ? (
+        <InsightAlert title="Couldn't load demand data">{error}</InsightAlert>
       ) : (
         <>
-          <div className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-4 py-3">
-            <Info size={15} className="text-violet-500 flex-shrink-0" />
-            <p className="text-xs text-gray-500"><strong className="text-violet-700 font-semibold">Production only</strong> This screen is empty on staging — orders, recommendations and profiles do not exist there.</p>
-          </div>
-
           {unserved.length > 0 && (
             <div className="bg-red-50 border border-red-100 rounded-xl px-5 py-4">
               <p className="text-sm font-semibold text-red-700 mb-2">Stated preferences nothing can serve</p>
