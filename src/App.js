@@ -28,6 +28,8 @@ import SalesReportForm from './pages/SalesReportForm';
 import Intelligence from './pages/Intelligence';
 import SommelierTester from './pages/SommelierTester';
 import QuizEditor from './pages/QuizEditor';
+import WineAttributes from './pages/WineAttributes';
+import WineCharacteristics from './pages/WineCharacteristics';
 import InsightsCatalogue from './pages/InsightsCatalogue';
 import PairingMatrix from './pages/PairingMatrix';
 import QuizCoverage from './pages/QuizCoverage';
@@ -84,6 +86,8 @@ function App() {
         <Route path="wine-regions" element={<WineRegions/>} />
         <Route path="brands" element={<Brands />} />
         <Route path="food-pairings" element={<FoodAndPairings/>} />
+        <Route path="wine-attributes" element={<WineAttributes/>} />
+        <Route path="wine-characteristics" element={<WineCharacteristics/>} />
         <Route path="quiz-editor" element={<QuizEditor/>} />
 
         <Route path="orders" element={<Orders/>} />

@@ -7,7 +7,7 @@ import {
   deleteCategory,
   clearCategoryStatus
 } from '../redux/CategorySlice';
-import { Loader2, Plus, Upload } from 'lucide-react';
+import { Loader2, Plus, Upload, Search } from 'lucide-react';
 import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Badge from '../components/ui/Badge';
@@ -39,6 +39,7 @@ const Categories = () => {
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState('product');
   const [typeFilter, setTypeFilter] = useState('');
+  const [search, setSearch] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -46,12 +47,14 @@ const Categories = () => {
     dispatch(fetchCategories({ per_page: 500 }));
   }, [dispatch]);
 
-  const filteredCategories = (categories || []).filter((c) => !typeFilter || c.type === typeFilter);
+  const filteredCategories = (categories || [])
+    .filter((c) => !typeFilter || c.type === typeFilter)
+    .filter((c) => c.name.toLowerCase().includes(search.toLowerCase()));
   const { items: pagedCategories, meta: pagination } = paginateLocal(filteredCategories, currentPage, PER_PAGE);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [typeFilter]);
+  }, [typeFilter, search]);
 
   useEffect(() => {
     if (!selectedId && categories?.length) setSelectedId(categories[0].id);
@@ -115,6 +118,11 @@ const Categories = () => {
         <div className="bg-white border border-gray-200 rounded-xl shadow-card flex flex-col max-h-[calc(100vh-220px)]">
           <div className="px-5 py-4 border-b border-gray-100 flex-shrink-0 space-y-2">
             <h3 className="text-sm font-bold text-gray-900">All Categories</h3>
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-300" />
+              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search categories..."
+                className="w-full pl-8 pr-2 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+            </div>
             <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
               className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500">
               <option value="">All types</option>

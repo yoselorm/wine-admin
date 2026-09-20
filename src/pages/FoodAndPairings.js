@@ -20,7 +20,7 @@ import {
   clearPairingStatus,
 } from '../redux/WineFoodPairingSlice';
 import { fetchProducts } from '../redux/ProductSlice';
-import { Loader2, Plus, X } from 'lucide-react';
+import { Loader2, Plus, X, Search } from 'lucide-react';
 import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Button from '../components/ui/Button';
@@ -64,8 +64,14 @@ const FoodAndPairings = () => {
   const [attrDraft, setAttrDraft] = useState({ type: 'flavour', value: '5' });
   const [pairingDraft, setPairingDraft] = useState({ product_id: '', reason: '', pairing_type: 'international' });
   const [currentPage, setCurrentPage] = useState(1);
+  const [search, setSearch] = useState('');
 
-  const { items: pagedDishes, meta: pagination } = paginateLocal(dishes || [], currentPage, PER_PAGE);
+  const filteredDishes = (dishes || []).filter((d) => d.name.toLowerCase().includes(search.toLowerCase()));
+  const { items: pagedDishes, meta: pagination } = paginateLocal(filteredDishes, currentPage, PER_PAGE);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
 
   useEffect(() => {
     dispatch(fetchFoodDishes({ per_page: 500 }));
@@ -183,14 +189,21 @@ const FoodAndPairings = () => {
       <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 mt-4">
         {/* LIST PANEL */}
         <div className="bg-white border border-gray-200 rounded-xl shadow-card flex flex-col max-h-[calc(100vh-220px)]">
-          <div className="px-5 py-4 border-b border-gray-100 flex-shrink-0">
+          <div className="px-5 py-4 border-b border-gray-100 flex-shrink-0 space-y-2.5">
             <h3 className="text-sm font-bold text-gray-900">Dishes</h3>
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-300" />
+              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search dishes..."
+                className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
             {loading && dishes.length === 0 ? (
               <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" size={20} /></div>
             ) : dishes.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-10">No dishes yet — add one below.</p>
+            ) : pagedDishes.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-10">No dishes match "{search}".</p>
             ) : (
               pagedDishes.map((dish) => {
                 const count = pairings?.filter((p) => p.dish_id === dish.id).length || 0;

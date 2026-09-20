@@ -24,6 +24,8 @@ import {
   HeartPulse,
   TrendingUp,
   Bot,
+  Sliders,
+  Tags,
 } from 'lucide-react';
 
 export const groupedSidebarLinks = [
@@ -42,6 +44,8 @@ export const groupedSidebarLinks = [
       { name: 'Wine Regions', path: '/dashboard/wine-regions', icon: Globe, permission: 'manage-wine-regions' },
       { name: 'Brands', path: '/dashboard/brands', icon: Factory, permission: 'manage-brands' },
       { name: 'Food & Pairings', path: '/dashboard/food-pairings', icon: Utensils, permission: 'manage-food-dishes' },
+      { name: 'Wine Characteristics', path: '/dashboard/wine-characteristics', icon: Sliders, permission: 'manage-products' },
+      { name: 'Wine Attributes', path: '/dashboard/wine-attributes', icon: Tags, permission: 'manage-products' },
       { name: 'Quiz Editor', path: '/dashboard/quiz-editor', icon: HelpCircle, permission: 'manage-products' },
     ],
   },

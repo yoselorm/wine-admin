@@ -6,6 +6,7 @@ import { fetchGaps } from '../redux/InsightsSlice';
 import toast from '../components/Toast';
 import Badge from '../components/ui/Badge';
 import InsightAlert from '../components/InsightAlert';
+import { describeItem } from '../utils/describeItem';
 
 const SEVERITY_ORDER = { high: 0, medium: 1, low: 2 };
 const SEVERITY_TONE = { high: 'red', medium: 'yellow', low: 'sky' };
@@ -21,7 +22,7 @@ const itemKind = (item) => {
   return 'label';
 };
 
-const itemLabel = (item) => (typeof item === 'string' ? item : item.name || item.label || item.title || JSON.stringify(item));
+const itemLabel = (item) => describeItem(item);
 
 const CheckItemRow = ({ item }) => {
   const navigate = useNavigate();

@@ -5,6 +5,7 @@ import { fetchCoverage, simulateCoverage, clearSimulation } from '../redux/Insig
 import toast from '../components/Toast';
 import Badge from '../components/ui/Badge';
 import InsightAlert from '../components/InsightAlert';
+import { describeItem } from '../utils/describeItem';
 
 const QuizCoverage = () => {
   const dispatch = useDispatch();
@@ -62,7 +63,13 @@ const QuizCoverage = () => {
               <Badge tone="red" size="lg">{blindSpots.length} answers</Badge>
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-red-700">Answers that reach no wines at all</p>
-                <p className="text-xs text-red-600/80 mt-0.5">{blindSpots.map((b) => b.label || b.option_label || b).join(' · ')}</p>
+                <div className="flex flex-wrap gap-1.5 mt-1.5">
+                  {blindSpots.map((b, i) => (
+                    <span key={i} className="text-xs bg-white border border-red-200 text-red-700 rounded px-2 py-1">
+                      {describeItem(b)}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           )}

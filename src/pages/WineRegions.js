@@ -7,7 +7,7 @@ import {
   deleteWineRegion,
   clearWineRegionStatus
 } from '../redux/WineRegionSlice';
-import { Loader2, Plus, Upload } from 'lucide-react';
+import { Loader2, Plus, Upload, Search } from 'lucide-react';
 import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Switch from '../components/ui/Switch';
@@ -33,12 +33,18 @@ const WineRegions = () => {
   const [newName, setNewName] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [search, setSearch] = useState('');
 
-  const { items: pagedRegions, meta: pagination } = paginateLocal(regions || [], currentPage, PER_PAGE);
+  const filteredRegions = (regions || []).filter((r) => r.name.toLowerCase().includes(search.toLowerCase()));
+  const { items: pagedRegions, meta: pagination } = paginateLocal(filteredRegions, currentPage, PER_PAGE);
 
   useEffect(() => {
     dispatch(fetchWineRegions({ per_page: 500 }));
   }, [dispatch]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
 
   useEffect(() => {
     if (!selectedId && regions?.length) setSelectedId(regions[0].id);
@@ -98,12 +104,19 @@ const WineRegions = () => {
       <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 mt-4">
         {/* LIST PANEL */}
         <div className="bg-white border border-gray-200 rounded-xl shadow-card flex flex-col max-h-[calc(100vh-220px)]">
-          <div className="px-5 py-4 border-b border-gray-100 flex-shrink-0">
+          <div className="px-5 py-4 border-b border-gray-100 flex-shrink-0 space-y-2.5">
             <h3 className="text-sm font-bold text-gray-900">All Regions</h3>
+            <div className="relative">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-300" />
+              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search regions..."
+                className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
             {loading && regions.length === 0 ? (
               <div className="flex justify-center py-10"><Loader2 className="animate-spin text-gray-400" size={20} /></div>
+            ) : pagedRegions.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-10">No regions match "{search}".</p>
             ) : (
               pagedRegions.map((r) => (
                 <div

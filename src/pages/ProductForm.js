@@ -20,6 +20,8 @@ import { fetchCategories } from "../redux/CategorySlice";
 import { fetchWineRegions } from "../redux/WineRegionSlice";
 import { fetchBlogs } from "../redux/BlogSlice";
 import { fetchFoodDishes } from "../redux/FoodDishSlice";
+import { fetchWineAttributes } from "../redux/WineAttributeSlice";
+import { TASTING_AXES } from "../utils/tastingAxes";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Switch from "../components/ui/Switch";
@@ -32,7 +34,6 @@ import toast from "../components/Toast";
 
 const PICKER_PAGE_SIZE = 10;
 
-const TASTING_AXES = ["bold", "dry", "acidity", "tannic", "soft", "light", "fizzy", "sweet"];
 const WINE_COLOURS = ["Red", "White", "Rosé", "Sparkling", "Dessert"];
 
 // Matches the types settable on the category form (frontend.md §8/§4.10) — pick a type first,
@@ -112,6 +113,7 @@ const ProductForm = () => {
   const { regions, pagination: regionPagination } = useSelector((state) => state.wineRegions || { items: [] });
   const { posts: blogs } = useSelector((state) => state.blogs || { items: [] });
   const { foodDishes: dishes } = useSelector((state) => state.foodDishes || { items: [] });
+  const { attributes: allWineAttributes } = useSelector((state) => state.wineAttributes || { attributes: [] });
 
   const [formData, setFormData] = useState(initialFormState);
   const [categoryTypeFilter, setCategoryTypeFilter] = useState("wine_type");
@@ -137,10 +139,14 @@ const ProductForm = () => {
     dispatch(fetchBrands());
     dispatch(fetchBlogs());
     dispatch(fetchFoodDishes());
+    // Reference data for the "choose instead of type" attribute picker below — see WineAttributes.js.
+    dispatch(fetchWineAttributes({ per_page: 500 }));
     if (isEditing) dispatch(fetchProductById(id));
     return () => dispatch(clearCurrentProduct());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  const knownAttributeTypes = [...new Set((allWineAttributes || []).map((a) => a.attribute_type).filter(Boolean))].sort();
 
   useEffect(() => {
     dispatch(fetchCategories({ type: categoryTypeFilter, search: categorySearch || undefined, page: categoryPage, per_page: PICKER_PAGE_SIZE }));
@@ -757,11 +763,17 @@ const ProductForm = () => {
         </Card>
 
         <Card title="Wine Characteristics">
-          <p className="text-xs text-gray-400 mb-3">Scored 0–10 · one score per axis; adding again replaces it. Merged with any existing scores on save, not replaced wholesale.</p>
+          <p className="text-xs text-gray-400 mb-3">
+            Scored 0–10 · one score per axis; adding again replaces it. Merged with any existing scores on
+            save, not replaced wholesale. See{' '}
+            <button type="button" onClick={() => navigate('/dashboard/wine-characteristics')} className="text-violet-600 hover:underline">
+              Wine Characteristics
+            </button> for what each axis means.
+          </p>
           <div className="flex items-center gap-2 mb-3">
             <select value={axisDraft.axis} onChange={(e) => setAxisDraft((d) => ({ ...d, axis: e.target.value }))}
               className="px-3 py-2 border border-gray-200 rounded-md bg-white text-sm focus:outline-none focus:border-violet-500">
-              {TASTING_AXES.map((t) => <option key={t} value={t}>{t}</option>)}
+              {TASTING_AXES.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}
             </select>
             <input type="number" min="0" max="10" placeholder="0–10" value={axisDraft.score}
               onChange={(e) => setAxisDraft((d) => ({ ...d, score: e.target.value }))}
@@ -781,11 +793,21 @@ const ProductForm = () => {
         </Card>
 
         <Card title="Wine Attributes">
-          <p className="text-xs text-gray-400 mb-3">Free-form facts — closure type, residual sugar, oak treatment... whatever doesn't fit a tasting score. Adding the same attribute again replaces it.</p>
+          <p className="text-xs text-gray-400 mb-3">
+            Free-form facts — closure type, residual sugar, oak treatment... whatever doesn't fit a tasting
+            score. Adding the same attribute again replaces it. Start typing to choose from types used
+            elsewhere in the catalog, or enter a new one — see the{' '}
+            <button type="button" onClick={() => navigate('/dashboard/wine-attributes')} className="text-violet-600 hover:underline">
+              Wine Attributes
+            </button> page to browse them all.
+          </p>
           <div className="flex items-center gap-2 mb-3">
-            <input type="text" placeholder="Attribute, e.g. Closure" value={wineAttrDraft.attribute_type}
+            <input list="known-attribute-types" type="text" placeholder="Attribute, e.g. Closure" value={wineAttrDraft.attribute_type}
               onChange={(e) => setWineAttrDraft((d) => ({ ...d, attribute_type: e.target.value }))}
               className="px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-violet-500 w-44" />
+            <datalist id="known-attribute-types">
+              {knownAttributeTypes.map((t) => <option key={t} value={t} />)}
+            </datalist>
             <input type="text" placeholder="Value, e.g. Screwcap" value={wineAttrDraft.value}
               onChange={(e) => setWineAttrDraft((d) => ({ ...d, value: e.target.value }))}
               className="flex-1 px-3 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-violet-500" />
