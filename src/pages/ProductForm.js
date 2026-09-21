@@ -72,6 +72,19 @@ const initialFormState = {
   pairings: [],
 };
 
+// The API returns null for anything unset — sale_price, sku, alcohol_abv, the dimensions. Spreading
+// that response straight over initialFormState replaces the "" those inputs start with, and React
+// treats a null value as "this field is uncontrolled": it warns on render, and the first keystroke
+// then switches the input back to controlled, which is where a half-typed value can be dropped.
+//
+// Only the fields that start life as a string are coerced. The arrays are replaced explicitly below.
+const textFieldsWithoutNulls = (product) =>
+  Object.fromEntries(
+    Object.entries(product).map(([key, value]) =>
+      [key, value === null && typeof initialFormState[key] === 'string' ? '' : value]
+    )
+  );
+
 const initialDraftInput = {
   producer: "",
   country: "",
@@ -237,7 +250,7 @@ const ProductForm = () => {
     if (isEditing && currentProduct) {
       setFormData({
         ...initialFormState,
-        ...currentProduct,
+        ...textFieldsWithoutNulls(currentProduct),
         category_ids: extractIds(currentProduct.category_ids, currentProduct.categories),
         region_ids: extractIds(currentProduct.region_ids, currentProduct.wine_regions || currentProduct.regions),
         blog_ids: extractIds(currentProduct.blog_ids, currentProduct.blogs || currentProduct.posts),
