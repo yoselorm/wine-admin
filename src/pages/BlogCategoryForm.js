@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Upload } from 'lucide-react';
 import { fetchBlogCategories, createBlogCategory, updateBlogCategory, clearCategoryStatus } from '../redux/BlogCategorySlice';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import RichTextEditor from '../components/RichTextEditor';
+import ImagePreview from '../components/ImagePreview';
 import toast from '../components/Toast';
 
 const emptyForm = {
@@ -105,9 +106,15 @@ const BlogCategoryForm = () => {
               <RichTextEditor value={formData.description} onChange={(html) => setFormData((p) => ({ ...p, description: html }))} />
             </div>
             <div>
-              <label className="block font-semibold text-gray-700 mb-1">Image URL</label>
-              <input type="url" name="image_url" value={formData.image_url} onChange={handleInputChange}
-                className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500 font-mono text-xs" />
+              <label className="block font-semibold text-gray-700 mb-1">Image</label>
+              <div className="flex items-center gap-3">
+                <label className="w-14 h-14 border-2 border-dashed border-gray-200 rounded-md flex items-center justify-center text-gray-300 cursor-pointer hover:border-violet-300 flex-shrink-0 overflow-hidden bg-white">
+                  <ImagePreview file={formData.image_url} className="w-full h-full object-cover" alt="" />
+                  {!formData.image_url && <Plus size={18} />}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && setFormData((p) => ({ ...p, image_url: e.target.files[0] }))} />
+                </label>
+                <span className="text-sm text-violet-600 font-medium flex items-center gap-1"><Upload size={13} /> Upload · JPG, PNG, WebP</span>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>

@@ -17,6 +17,23 @@ export const fetchWineAttributes = createAsyncThunk(
   }
 );
 
+// Drives the type picker — `attribute_type` used to be one of a handful of fixed values, now
+// it's any `^[a-z][a-z0-9_]*$` identifier. `in_use` is what's already in the catalogue, ordered by
+// how many products carry it; `suggested` is grouped `shared` (always relevant) plus one group
+// per beverage class (wine/spirit/beer/non_alcoholic) — offer `shared` plus whichever class group
+// matches the product being edited.
+export const fetchAttributeTypes = createAsyncThunk(
+  'wineAttributes/fetchTypes',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`${api_url}/v1/admin/attribute-types`);
+      return response.data?.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch attribute types.');
+    }
+  }
+);
+
 // 2. Create New Wine Attribute (Payload: product_id, attribute_type, value)
 export const createWineAttribute = createAsyncThunk(
   'wineAttributes/create',
@@ -65,6 +82,8 @@ export const deleteWineAttribute = createAsyncThunk(
 const initialState = {
   attributes: [],
   pagination: null,
+  inUseTypes: [],
+  suggestedTypes: { shared: [], wine: [], spirit: [], beer: [], non_alcoholic: [] },
   loading: false,
   mutationLoading: false,
   error: null,
@@ -95,6 +114,12 @@ const wineAttributeSlice = createSlice({
       .addCase(fetchWineAttributes.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
+      })
+
+      // --- Fetch Types (for the picker) ---
+      .addCase(fetchAttributeTypes.fulfilled, (state, action) => {
+        state.inUseTypes = action.payload?.in_use || [];
+        state.suggestedTypes = action.payload?.suggested || initialState.suggestedTypes;
       })
 
       // --- Create ---

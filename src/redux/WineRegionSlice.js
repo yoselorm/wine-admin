@@ -28,6 +28,17 @@ export const fetchWineRegions = createAsyncThunk(
   }
 );
 
+// The upload file fields are `flag` and `image`, not `flag_url`/`image_url` — wine regions don't
+// accept either as a URL string, so a plain string (an existing image, unchanged) is dropped
+// rather than resent; omitting a field is what keeps that existing image on an update.
+const withRegionImageFields = (regionData) => {
+  const { flag_url, image_url, ...rest } = regionData;
+  const out = { ...rest };
+  if (flag_url instanceof File) out.flag = flag_url;
+  if (image_url instanceof File) out.image = image_url;
+  return out;
+};
+
 // 2. Create a New Wine Region
 // Payload matching schema: { name, slug, description, type, parent_id, iso_code, flag_url, image_url, is_published, position }
 export const createWineRegion = createAsyncThunk(
@@ -35,7 +46,7 @@ export const createWineRegion = createAsyncThunk(
   async (regionData, { rejectWithValue }) => {
     try {
       const hasFile = regionData.flag_url instanceof File || regionData.image_url instanceof File;
-      const payload = hasFile ? prepareFormData(regionData) : regionData;
+      const payload = hasFile ? prepareFormData(withRegionImageFields(regionData)) : withRegionImageFields(regionData);
       const response = await api.post(`${api_url}/v1/admin/wine-regions`, payload, {
         headers: hasFile ? { 'Content-Type': 'multipart/form-data' } : undefined,
       });
@@ -58,13 +69,13 @@ export const updateWineRegion = createAsyncThunk(
       if (hasFile) {
         // PHP never populates uploaded files on PUT/PATCH bodies, so multipart updates must go
         // over POST with Laravel's _method spoof field to still hit the PUT route/controller.
-        const payload = prepareFormData(data);
+        const payload = prepareFormData(withRegionImageFields(data));
         payload.append('_method', 'PUT');
         response = await api.post(`${api_url}/v1/admin/wine-regions/${id}`, payload, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
       } else {
-        response = await api.put(`${api_url}/v1/admin/wine-regions/${id}`, data);
+        response = await api.put(`${api_url}/v1/admin/wine-regions/${id}`, withRegionImageFields(data));
       }
       return response.data;
     } catch (error) {

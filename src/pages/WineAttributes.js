@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   fetchWineAttributes,
+  fetchAttributeTypes,
   createWineAttribute,
   updateWineAttribute,
   deleteWineAttribute,
@@ -12,17 +13,18 @@ import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Pagination from '../components/Pagination';
 import { paginateLocal } from '../utils/paginateLocal';
-import { ATTRIBUTE_TYPES, ATTRIBUTE_TYPE_LABEL } from '../utils/wineAttributeTypes';
 
-const emptyDetail = { attribute_type: ATTRIBUTE_TYPES[0].value, value: '' };
+const humanizeType = (t) => t.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+const emptyDetail = { attribute_type: '', value: '' };
 const PER_PAGE = 12;
 
-// A catalog of (type, value) facts — closure, residual sugar, oak treatment — not tied to any one
-// product. Each entry's `products_count` shows how many wines currently carry it; the product
-// form's Wine Attributes picker reads this whole list to let an admin choose instead of type.
+// A catalog of (type, value) facts — closure, residual sugar, oak treatment, age statement, cask
+// type... not tied to any one product. `attribute_type` is any lowercase identifier now, not a
+// fixed enum, so the type field merges what's already in use with the starter suggestions and
+// still accepts free text — a spirit needs `age_statement`, a wine needs `grape_blend`.
 const WineAttributes = () => {
   const dispatch = useDispatch();
-  const { attributes, loading, mutationLoading, error, successMessage } = useSelector((s) => s.wineAttributes);
+  const { attributes, inUseTypes, suggestedTypes, loading, mutationLoading, error, successMessage } = useSelector((s) => s.wineAttributes);
 
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(emptyDetail);
@@ -31,8 +33,16 @@ const WineAttributes = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
 
+  const typeOptions = [
+    ...inUseTypes.map((t) => ({ value: t.attribute_type, label: humanizeType(t.attribute_type), hint: null, products_count: t.products_count })),
+    ...(suggestedTypes.shared || []).filter((s) => !inUseTypes.some((t) => t.attribute_type === s.attribute_type))
+      .map((s) => ({ value: s.attribute_type, label: humanizeType(s.attribute_type), hint: s.hint })),
+  ];
+  const hintFor = (value) => typeOptions.find((t) => t.value === value)?.hint;
+
   useEffect(() => {
     dispatch(fetchWineAttributes({ per_page: 500 }));
+    dispatch(fetchAttributeTypes());
   }, [dispatch]);
 
   useEffect(() => {
@@ -87,8 +97,8 @@ const WineAttributes = () => {
       <div>
         <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Wine Attributes</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Grape blend, colour note, bottle size and allergens — for the tasting-score axes, see
-          Wine Characteristics instead.
+          Free-form catalogue facts — bottle size, allergens, cask type, age statement and more —
+          for the tasting-score axes, see Wine Characteristics instead.
         </p>
       </div>
 
@@ -119,7 +129,7 @@ const WineAttributes = () => {
                 >
                   <div className="min-w-0">
                     <p className={`text-sm font-semibold truncate ${selectedId === attr.id ? 'text-violet-700' : 'text-gray-900'}`}>
-                      {ATTRIBUTE_TYPE_LABEL[attr.attribute_type] || attr.attribute_type}: <span className="font-normal text-gray-600">{attr.value}</span>
+                      {humanizeType(attr.attribute_type)}: <span className="font-normal text-gray-600">{attr.value}</span>
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">{attr.products_count ?? 0} product{attr.products_count === 1 ? '' : 's'}</p>
                   </div>
@@ -136,13 +146,19 @@ const WineAttributes = () => {
           <div className="p-4 border-t border-gray-100 flex-shrink-0 space-y-2">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">New Attribute</p>
             <div className="flex gap-2">
-              <select value={newAttr.attribute_type} onChange={(e) => setNewAttr((a) => ({ ...a, attribute_type: e.target.value }))}
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500">
-                {ATTRIBUTE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-              </select>
-              <input type="text" value={newAttr.value} onChange={(e) => setNewAttr((a) => ({ ...a, value: e.target.value }))}
-                placeholder="Value" className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+              <input list="attribute-type-options" type="text" value={newAttr.attribute_type}
+                onChange={(e) => setNewAttr((a) => ({ ...a, attribute_type: e.target.value.toLowerCase() }))}
+                placeholder="Type, e.g. bottle_size" pattern="^[a-z][a-z0-9_]*$"
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+              <input type="text" maxLength={500} value={newAttr.value} onChange={(e) => setNewAttr((a) => ({ ...a, value: e.target.value }))}
+                placeholder={hintFor(newAttr.attribute_type) || 'Value'} className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
             </div>
+            <datalist id="attribute-type-options">
+              {typeOptions.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </datalist>
+            {newAttr.attribute_type && !/^[a-z][a-z0-9_]*$/.test(newAttr.attribute_type) && (
+              <p className="text-xs text-red-500">Lowercase letters, numbers and underscores only, starting with a letter.</p>
+            )}
             <button onClick={handleAddNew} disabled={mutationLoading}
               className="w-full py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
               {mutationLoading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add Attribute
@@ -161,15 +177,18 @@ const WineAttributes = () => {
               <div className="grid grid-cols-2 gap-x-4 gap-y-5 text-sm">
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Attribute Type <span className="text-red-500">*</span></label>
-                  <select value={detail.attribute_type} onChange={(e) => setDetail((p) => ({ ...p, attribute_type: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 bg-white rounded-md focus:outline-none focus:border-violet-500">
-                    {ATTRIBUTE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                  </select>
+                  <input list="attribute-type-options" type="text" value={detail.attribute_type}
+                    onChange={(e) => setDetail((p) => ({ ...p, attribute_type: e.target.value.toLowerCase() }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Value <span className="text-red-500">*</span></label>
-                  <input type="text" value={detail.value} onChange={(e) => setDetail((p) => ({ ...p, value: e.target.value }))}
+                  <input type="text" maxLength={500} value={detail.value} onChange={(e) => setDetail((p) => ({ ...p, value: e.target.value }))}
+                    placeholder={hintFor(detail.attribute_type) || undefined}
                     className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+                  {hintFor(detail.attribute_type) && (
+                    <p className="text-xs text-gray-400 mt-1">{hintFor(detail.attribute_type)}</p>
+                  )}
                 </div>
               </div>
               <div className="flex justify-end mt-6">

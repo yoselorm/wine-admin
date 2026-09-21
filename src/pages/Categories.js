@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   fetchCategories,
+  fetchCategoryTypes,
   createCategory,
   updateCategory,
   deleteCategory,
@@ -16,24 +17,26 @@ import RichTextEditor from '../components/RichTextEditor';
 import ImagePreview from '../components/ImagePreview';
 import { paginateLocal } from '../utils/paginateLocal';
 
-// `food_pairing` is a legacy type the API still accepts but food dishes have superseded it —
-// it's intentionally left off this list so it can't be chosen for new/edited categories.
-const CATEGORY_TYPES = [
-  { value: 'product', label: 'Product' },
-  { value: 'wine_type', label: 'Wine Type' },
-  { value: 'grape', label: 'Grape' },
-  { value: 'offer', label: 'Offer' },
-];
-const TYPE_LABEL = Object.fromEntries(CATEGORY_TYPES.map((t) => [t.value, t.label]));
+// `food_pairing` is a legacy type the API still refuses with a 422 explaining pairings belong
+// under Food & Pairings instead — that message comes back as-is via `error` below, not hardcoded here.
+const humanizeType = (t) => t.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 
-const emptyDetail = { name: '', slug: '', description: '', image_url: '', parent_id: '', type: 'product' };
+const emptyDetail = { name: '', slug: '', description: '', image_url: '', parent_id: '', type: '' };
 const PER_PAGE = 10;
 
 const Categories = () => {
   const dispatch = useDispatch();
   // GET /admin/categories is the flat paginator shape (data IS the array, no meta) — fetch
   // everything once and paginate client-side instead of relying on server page metadata.
-  const { categories, loading, mutationLoading, error, message } = useSelector((state) => state.categories);
+  const { categories, categoryTypes, suggestedTypes, loading, mutationLoading, error, message } = useSelector((state) => state.categories);
+
+  // `type` is now any ^[a-z][a-z0-9_]*$ identifier, not a fixed enum — this merges what already
+  // exists in the catalogue with the starter suggestions, for the "pick or type your own" fields.
+  const typeOptions = [
+    ...categoryTypes.map((t) => ({ value: t.type, label: humanizeType(t.type), categories_count: t.categories_count, used_by_sommelier: t.used_by_sommelier })),
+    ...suggestedTypes.filter((s) => !categoryTypes.some((t) => t.type === s)).map((s) => ({ value: s, label: humanizeType(s) })),
+  ];
+  const typeInfo = (value) => typeOptions.find((t) => t.value === value);
 
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(emptyDetail);
@@ -46,6 +49,7 @@ const Categories = () => {
 
   useEffect(() => {
     dispatch(fetchCategories({ per_page: 500 }));
+    dispatch(fetchCategoryTypes());
   }, [dispatch]);
 
   const filteredCategories = (categories || [])
@@ -127,7 +131,7 @@ const Categories = () => {
             <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}
               className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500">
               <option value="">All types</option>
-              {CATEGORY_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              {categoryTypes.map((t) => <option key={t.type} value={t.type}>{humanizeType(t.type)} ({t.categories_count})</option>)}
             </select>
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
@@ -148,7 +152,7 @@ const Categories = () => {
                     <p className={`text-sm font-semibold truncate ${selectedId === cat.id ? 'text-violet-700' : 'text-gray-900'}`}>{cat.name}</p>
                     <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1.5">
                       /{cat.slug}
-                      <Badge tone="neutral" size="sm">{TYPE_LABEL[cat.type] || cat.type || 'product'}</Badge>
+                      <Badge tone="neutral" size="sm">{cat.type ? humanizeType(cat.type) : 'Product'}</Badge>
                     </p>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0 pl-2">
@@ -171,10 +175,15 @@ const Categories = () => {
               placeholder="Name, e.g. Fortified Wine"
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500"
             />
-            <select value={newType} onChange={(e) => setNewType(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500">
-              {CATEGORY_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
+            <input list="category-type-options" type="text" value={newType} onChange={(e) => setNewType(e.target.value.toLowerCase())}
+              placeholder="Type, e.g. wine_type" pattern="^[a-z][a-z0-9_]*$"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+            <datalist id="category-type-options">
+              {typeOptions.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </datalist>
+            {newType && !/^[a-z][a-z0-9_]*$/.test(newType) && (
+              <p className="text-xs text-red-500">Lowercase letters, numbers and underscores only, starting with a letter.</p>
+            )}
             <button onClick={handleAddNew} disabled={mutationLoading}
               className="w-full py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
               {mutationLoading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add Category
@@ -203,12 +212,15 @@ const Categories = () => {
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Type <span className="text-red-500">*</span></label>
-                  <select value={detail.type} onChange={(e) => setDetail((p) => ({ ...p, type: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 bg-white rounded-md focus:outline-none focus:border-violet-500">
-                    {CATEGORY_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-                    {detail.type === 'food_pairing' && <option value="food_pairing">Food Pairing (legacy)</option>}
-                  </select>
-                  <p className="text-xs text-gray-400 mt-1">The taxonomy is flat — grapes aren't nested under a colour.</p>
+                  <input list="category-type-options" type="text" value={detail.type}
+                    onChange={(e) => setDetail((p) => ({ ...p, type: e.target.value.toLowerCase() }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+                  <p className="text-xs text-gray-400 mt-1">
+                    The taxonomy is flat — grapes aren't nested under a colour.
+                    {typeInfo(detail.type) && !typeInfo(detail.type).used_by_sommelier && (
+                      <span className="block text-yellow-600 mt-0.5">Not read by the sommelier — this type only affects browsing, not recommendations.</span>
+                    )}
+                  </p>
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Parent Category</label>

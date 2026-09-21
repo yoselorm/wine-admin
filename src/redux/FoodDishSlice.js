@@ -28,6 +28,14 @@ export const fetchFoodDishes = createAsyncThunk(
   }
 );
 
+// The upload file field is `image`, not `image_url` — food dishes don't accept a URL string at
+// all, so a plain string (an existing image, unchanged) is dropped rather than resent; omitting
+// the field is what keeps the existing image on an update.
+const withDishImageField = (dishData) => {
+  const { image_url, ...rest } = dishData;
+  return image_url instanceof File ? { ...rest, image: image_url } : rest;
+};
+
 // 2. Create a New Food Dish
 // Payload schema structure match: { name, description, origin, image_url }
 export const createFoodDish = createAsyncThunk(
@@ -35,7 +43,7 @@ export const createFoodDish = createAsyncThunk(
   async (dishData, { rejectWithValue }) => {
     try {
       const hasFile = dishData.image_url instanceof File;
-      const payload = hasFile ? prepareFormData(dishData) : dishData;
+      const payload = hasFile ? prepareFormData(withDishImageField(dishData)) : withDishImageField(dishData);
       const response = await api.post(`${api_url}/v1/admin/food-dishes`, payload, {
         headers: hasFile ? { 'Content-Type': 'multipart/form-data' } : undefined,
       });
@@ -58,13 +66,13 @@ export const updateFoodDish = createAsyncThunk(
       if (hasFile) {
         // PHP never populates uploaded files on PUT/PATCH bodies, so multipart updates must go
         // over POST with Laravel's _method spoof field to still hit the PUT route/controller.
-        const payload = prepareFormData(data);
+        const payload = prepareFormData(withDishImageField(data));
         payload.append('_method', 'PUT');
         response = await api.post(`${api_url}/v1/admin/food-dishes/${id}`, payload, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
       } else {
-        response = await api.put(`${api_url}/v1/admin/food-dishes/${id}`, data);
+        response = await api.put(`${api_url}/v1/admin/food-dishes/${id}`, withDishImageField(data));
       }
       return response.data;
     } catch (error) {

@@ -92,9 +92,10 @@ export const updateBlog = createAsyncThunk(
 
       let response;
       if (hasFile) {
-        // Form data put mutations sometimes drop attachments depending on your Laravel configuration.
-        // If your backend PUT fails with file payloads, append '_method: "PUT"' and use api.post instead.
+        // PHP never populates uploaded files on PUT/PATCH bodies, so multipart updates must go
+        // over POST with Laravel's _method spoof field to still hit the PUT route/controller.
         const payload = prepareFormData(blogData);
+        payload.append("_method", "PUT");
         response = await api.post(`${api_url}/v1/admin/blogs/${id}`, payload, {
           headers: { "Content-Type": "multipart/form-data" },
         });

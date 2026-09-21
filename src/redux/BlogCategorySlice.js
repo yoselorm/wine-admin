@@ -26,12 +26,34 @@ export const fetchBlogCategories = createAsyncThunk(
   }
 );
 
+const prepareFormData = (data) => {
+  const formData = new FormData();
+  Object.keys(data).forEach((key) => {
+    if (data[key] !== null && data[key] !== undefined) {
+      formData.append(key, data[key]);
+    }
+  });
+  return formData;
+};
+
+// The upload file field is `image`, not `image_url` — blog categories don't accept a URL string
+// at all, so a plain string (an existing image, unchanged) is dropped rather than resent;
+// omitting the field is what keeps the existing image on an update.
+const withBlogCategoryImageField = (categoryData) => {
+  const { image_url, ...rest } = categoryData;
+  return image_url instanceof File ? { ...rest, image: image_url } : rest;
+};
+
 // 2. Create Blog Category (POST)
 export const createBlogCategory = createAsyncThunk(
   'blogCategories/createBlogCategory',
   async (categoryData, { rejectWithValue }) => {
     try {
-      const response = await api.post(`${api_url}/v1/admin/blog-categories`, categoryData);
+      const hasFile = categoryData.image_url instanceof File;
+      const payload = hasFile ? prepareFormData(withBlogCategoryImageField(categoryData)) : withBlogCategoryImageField(categoryData);
+      const response = await api.post(`${api_url}/v1/admin/blog-categories`, payload, {
+        headers: hasFile ? { 'Content-Type': 'multipart/form-data' } : undefined,
+      });
       return response.data?.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || 'Failed to create blog category');
@@ -39,12 +61,24 @@ export const createBlogCategory = createAsyncThunk(
   }
 );
 
-// 3. Update Blog Category (PUT)
+// 3. Update Blog Category (PUT/POST simulation for multipart edits)
 export const updateBlogCategory = createAsyncThunk(
   'blogCategories/updateBlogCategory',
   async ({ id, categoryData }, { rejectWithValue }) => {
     try {
-      const response = await api.put(`${api_url}/v1/admin/blog-categories/${id}`, categoryData);
+      const hasFile = categoryData.image_url instanceof File;
+      let response;
+      if (hasFile) {
+        // PHP never populates uploaded files on PUT/PATCH bodies, so multipart updates must go
+        // over POST with Laravel's _method spoof field to still hit the PUT route/controller.
+        const payload = prepareFormData(withBlogCategoryImageField(categoryData));
+        payload.append('_method', 'PUT');
+        response = await api.post(`${api_url}/v1/admin/blog-categories/${id}`, payload, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+      } else {
+        response = await api.put(`${api_url}/v1/admin/blog-categories/${id}`, withBlogCategoryImageField(categoryData));
+      }
       return response.data?.data;
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || 'Failed to update blog category');

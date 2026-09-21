@@ -16,14 +16,13 @@ import {
   clearPreview,
 } from "../redux/ProductSlice";
 import { fetchBrands } from "../redux/BrandSlice";
-import { fetchCategories } from "../redux/CategorySlice";
+import { fetchCategories, fetchCategoryTypes } from "../redux/CategorySlice";
 import { fetchWineRegions } from "../redux/WineRegionSlice";
 import { fetchBlogs } from "../redux/BlogSlice";
 import { fetchFoodDishes } from "../redux/FoodDishSlice";
-import { fetchWineAttributes } from "../redux/WineAttributeSlice";
+import { fetchWineAttributes, fetchAttributeTypes } from "../redux/WineAttributeSlice";
 import { fetchWineCharacteristics } from "../redux/WineCharacteristicSlice";
 import { TASTING_AXES } from "../utils/tastingAxes";
-import { ATTRIBUTE_TYPES, ATTRIBUTE_TYPE_LABEL } from "../utils/wineAttributeTypes";
 import { useDebouncedValue } from "../utils/useDebouncedValue";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
@@ -40,15 +39,7 @@ const PICKER_PAGE_SIZE = 10;
 
 const WINE_COLOURS = ["Red", "White", "Rosé", "Sparkling", "Dessert"];
 
-// Matches the types settable on the category form (frontend.md §8/§4.10) — pick a type first,
-// then choose from just that type's categories, so a 60-grape list doesn't bury the 4 colours.
-const CATEGORY_TYPES = [
-  { value: "wine_type", label: "Wine Type" },
-  { value: "grape", label: "Grape" },
-  { value: "product", label: "Product" },
-  { value: "offer", label: "Offer" },
-];
-const CATEGORY_TYPE_LABEL = Object.fromEntries(CATEGORY_TYPES.map((t) => [t.value, t.label]));
+const humanizeType = (t) => t.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 
 const initialFormState = {
   name: "",
@@ -113,15 +104,23 @@ const ProductForm = () => {
     previewData, previewMessage, previewLoading, previewError,
   } = useSelector((s) => s.products);
   const { brands } = useSelector((state) => state.brands || { items: [] });
-  const { categories, pagination: categoryPagination } = useSelector((state) => state.categories || { items: [] });
+  const { categories, categoryTypes, suggestedTypes: suggestedCategoryTypes, pagination: categoryPagination } = useSelector((state) => state.categories || { items: [] });
   const { regions, pagination: regionPagination } = useSelector((state) => state.wineRegions || { items: [] });
   const { posts: blogs } = useSelector((state) => state.blogs || { items: [] });
   const { foodDishes: dishes } = useSelector((state) => state.foodDishes || { items: [] });
-  const { attributes: wineAttributesPage, pagination: attributePagination } = useSelector((state) => state.wineAttributes || { attributes: [] });
+  const { attributes: wineAttributesPage, inUseTypes, suggestedTypes: suggestedAttributeTypes, pagination: attributePagination } = useSelector((state) => state.wineAttributes || { attributes: [] });
   const { characteristics: allWineCharacteristics } = useSelector((state) => state.wineCharacteristics || { characteristics: [] });
 
+  // Pick a type first, then choose from just that type's values, so a 60-grape list doesn't
+  // bury the 4 colours. Types are open-ended now — merge what's already in the catalogue with
+  // the backend's suggestions instead of assuming a fixed set.
+  const categoryTypeOptions = [
+    ...(categoryTypes || []).map((t) => ({ value: t.type, label: humanizeType(t.type), count: t.categories_count })),
+    ...(suggestedCategoryTypes || []).filter((s) => !(categoryTypes || []).some((t) => t.type === s)).map((s) => ({ value: s, label: humanizeType(s), count: 0 })),
+  ];
+
   const [formData, setFormData] = useState(initialFormState);
-  const [categoryTypeFilter, setCategoryTypeFilter] = useState("wine_type");
+  const [categoryTypeFilter, setCategoryTypeFilter] = useState("");
   const [categorySearch, setCategorySearch] = useState("");
   const [categoryPage, setCategoryPage] = useState(1);
   // /admin/categories and /admin/wine-regions now paginate (15/page by default), so only the
@@ -133,7 +132,7 @@ const ProductForm = () => {
   const [regionCache, setRegionCache] = useState({});
   const [blogSearch, setBlogSearch] = useState("");
   const [axisDraft, setAxisDraft] = useState({ axis: "bold", score: "5" });
-  const [attributeTypeFilter, setAttributeTypeFilter] = useState(ATTRIBUTE_TYPES[0].value);
+  const [attributeTypeFilter, setAttributeTypeFilter] = useState("");
   const [attributeSearch, setAttributeSearch] = useState("");
   const [attributePage, setAttributePage] = useState(1);
   const [pairingDraft, setPairingDraft] = useState({ dish_id: "", reason: "", pairing_type: "international" });
@@ -152,12 +151,20 @@ const ProductForm = () => {
     dispatch(fetchBrands());
     dispatch(fetchBlogs());
     dispatch(fetchFoodDishes());
+    dispatch(fetchCategoryTypes());
+    dispatch(fetchAttributeTypes());
     // Reference data for the "choose instead of type" characteristics picker — see WineCharacteristics.js.
     dispatch(fetchWineCharacteristics({ per_page: 500 }));
     if (isEditing) dispatch(fetchProductById(id));
     return () => dispatch(clearCurrentProduct());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  // Land on whichever type the catalogue already uses most, once the list of types has loaded.
+  useEffect(() => {
+    if (!categoryTypeFilter && categoryTypeOptions.length) setCategoryTypeFilter(categoryTypeOptions[0].value);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryTypeOptions.length]);
 
   // Attributes are picked the same way categories are: choose a type, page through that type's
   // known values fetched from the server — see WineAttributes.js. Selection itself stores the
@@ -445,6 +452,36 @@ const ProductForm = () => {
   // and `regions` are already just the page being browsed — no client-side filtering needed.
   const filteredBlogs = blogs?.filter((b) => b.title.toLowerCase().includes(blogSearch.toLowerCase())) || [];
   const selectedCategories = formData.category_ids.map((cid) => categoryCache[cid]).filter(Boolean);
+
+  // Sommelier/tasting-axes/pairing-matrix stay wine-only by design — this class only steers which
+  // attribute-type suggestions to surface, it never gates any wine-only feature.
+  const selectedCategoryTypes = selectedCategories.map((c) => c.type);
+  const beverageClass = selectedCategoryTypes.includes("wine_type") || selectedCategoryTypes.includes("grape")
+    ? "wine"
+    : selectedCategoryTypes.includes("spirit_type")
+    ? "spirit"
+    : selectedCategoryTypes.includes("beer_type")
+    ? "beer"
+    : selectedCategories.some((c) => c.type === "beverage_type" && /non.?alcoholic/i.test(c.name || ""))
+    ? "non_alcoholic"
+    : null;
+
+  // Always offer the universally-relevant attribute types plus whichever group matches the
+  // product's beverage class, and fold in anything already in use (including custom, one-off types).
+  const suggestedAttributeGroup = [
+    ...(suggestedAttributeTypes?.shared || []),
+    ...(beverageClass ? suggestedAttributeTypes?.[beverageClass] || [] : []),
+  ];
+  const attributeTypeOptions = [
+    ...suggestedAttributeGroup.map((s) => ({ value: s.attribute_type, label: humanizeType(s.attribute_type), hint: s.hint })),
+    ...(inUseTypes || []).filter((t) => !suggestedAttributeGroup.some((s) => s.attribute_type === t.attribute_type))
+      .map((t) => ({ value: t.attribute_type, label: humanizeType(t.attribute_type), hint: null })),
+  ];
+
+  useEffect(() => {
+    if (!attributeTypeFilter && attributeTypeOptions.length) setAttributeTypeFilter(attributeTypeOptions[0].value);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [attributeTypeOptions.length]);
   const selectedRegions = formData.region_ids.map((rid) => regionCache[rid]).filter(Boolean);
 
   if (isEditing && loading && !currentProduct) {
@@ -615,7 +652,7 @@ const ProductForm = () => {
                   {selectedCategories.map((c) => (
                     <button key={c.id} type="button" onClick={() => toggleSelection("category_ids", c.id)}
                       className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 text-xs font-medium bg-violet-50 text-violet-700 border border-violet-100 rounded-full hover:bg-violet-100">
-                      <span className="text-[10px] text-violet-400 uppercase font-bold">{CATEGORY_TYPE_LABEL[c.type] || c.type}</span>
+                      <span className="text-[10px] text-violet-400 uppercase font-bold">{c.type ? humanizeType(c.type) : "Product"}</span>
                       {c.name}
                       <X size={11} />
                     </button>
@@ -625,7 +662,7 @@ const ProductForm = () => {
 
               <div className="flex items-center justify-between gap-2 mb-2.5">
                 <div className="flex gap-1.5 flex-wrap">
-                  {CATEGORY_TYPES.map((t) => {
+                  {categoryTypeOptions.map((t) => {
                     const count = selectedCategories.filter((c) => (c.type || "product") === t.value).length;
                     return (
                       <button key={t.value} type="button" onClick={() => setCategoryTypeFilter(t.value)}
@@ -644,7 +681,7 @@ const ProductForm = () => {
                 </div>
                 <div className="relative flex-shrink-0">
                   <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input type="text" placeholder={`Search ${CATEGORY_TYPE_LABEL[categoryTypeFilter].toLowerCase()}...`}
+                  <input type="text" placeholder={`Search ${(categoryTypeFilter ? humanizeType(categoryTypeFilter) : "").toLowerCase()}...`}
                     value={categorySearch} onChange={(e) => setCategorySearch(e.target.value)}
                     className="pl-7 pr-2 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500 w-40" />
                 </div>
@@ -652,7 +689,7 @@ const ProductForm = () => {
 
               <div className="flex flex-wrap gap-2 min-h-[34px]">
                 {categories.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic py-1">No {CATEGORY_TYPE_LABEL[categoryTypeFilter].toLowerCase()} categories match.</p>
+                  <p className="text-xs text-gray-400 italic py-1">No {(categoryTypeFilter ? humanizeType(categoryTypeFilter) : "").toLowerCase()} categories match.</p>
                 ) : (
                   categories.map((c) => (
                     <Pill key={c.id} active={formData.category_ids.includes(c.id)} onClick={() => toggleSelection("category_ids", c.id)}>
@@ -853,8 +890,9 @@ const ProductForm = () => {
 
         <Card title="Wine Attributes">
           <p className="text-xs text-gray-400 mb-3">
-            Grape blend, colour note, bottle size, allergens. Pick a type, then choose from that
-            type's known values — new values are added on the{' '}
+            Bottle size, allergens, colour note and more — plus whatever fits this product's
+            beverage class. Pick a type, then choose from that type's known values — new values
+            are added on the{' '}
             <button type="button" onClick={() => navigate('/dashboard/wine-attributes')} className="text-violet-600 hover:underline">
               Wine Attributes
             </button> page.
@@ -865,7 +903,7 @@ const ProductForm = () => {
               {selectedWineAttributes.map((a, i) => (
                 <button key={i} type="button" onClick={() => toggleWineAttribute(a.attribute_type, a.value)}
                   className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 text-xs font-medium bg-violet-50 text-violet-700 border border-violet-100 rounded-full hover:bg-violet-100">
-                  <span className="text-[10px] text-violet-400 uppercase font-bold">{ATTRIBUTE_TYPE_LABEL[a.attribute_type] || a.attribute_type}</span>
+                  <span className="text-[10px] text-violet-400 uppercase font-bold">{humanizeType(a.attribute_type)}</span>
                   {a.value}
                   <X size={11} />
                 </button>
@@ -875,10 +913,10 @@ const ProductForm = () => {
 
           <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
             <div className="flex gap-1.5 flex-wrap">
-              {ATTRIBUTE_TYPES.map((t) => {
+              {attributeTypeOptions.map((t) => {
                 const count = selectedWineAttributes.filter((a) => a.attribute_type === t.value).length;
                 return (
-                  <button key={t.value} type="button" onClick={() => setAttributeTypeFilter(t.value)}
+                  <button key={t.value} type="button" onClick={() => setAttributeTypeFilter(t.value)} title={t.hint || undefined}
                     className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-colors ${
                       attributeTypeFilter === t.value ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
                     }`}>
@@ -894,15 +932,18 @@ const ProductForm = () => {
             </div>
             <div className="relative flex-shrink-0">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input type="text" placeholder={`Search ${ATTRIBUTE_TYPE_LABEL[attributeTypeFilter]?.toLowerCase()}...`}
+              <input type="text" placeholder={`Search ${(attributeTypeFilter ? humanizeType(attributeTypeFilter) : "").toLowerCase()}...`}
                 value={attributeSearch} onChange={(e) => setAttributeSearch(e.target.value)}
                 className="pl-7 pr-2 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500 w-40" />
             </div>
           </div>
+          {attributeTypeFilter && attributeTypeOptions.find((t) => t.value === attributeTypeFilter)?.hint && (
+            <p className="text-xs text-gray-400 -mt-1.5 mb-2">{attributeTypeOptions.find((t) => t.value === attributeTypeFilter).hint}</p>
+          )}
           <div className="flex flex-wrap gap-2 min-h-[34px]">
             {(wineAttributesPage || []).length === 0 ? (
               <p className="text-xs text-gray-400 italic py-1">
-                No {ATTRIBUTE_TYPE_LABEL[attributeTypeFilter]?.toLowerCase()} values yet — add one on the{' '}
+                No {(attributeTypeFilter ? humanizeType(attributeTypeFilter) : "").toLowerCase()} values yet — add one on the{' '}
                 <button type="button" onClick={() => navigate('/dashboard/wine-attributes')} className="text-violet-600 hover:underline">Wine Attributes</button> page.
               </p>
             ) : (

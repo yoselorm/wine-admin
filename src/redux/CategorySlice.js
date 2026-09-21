@@ -37,6 +37,21 @@ export const fetchCategories = createAsyncThunk(
   }
 );
 
+// Drives the type picker — `type` used to be one of four fixed values, now it's any
+// `^[a-z][a-z0-9_]*$` identifier. `types` is what already exists in the catalogue; `suggested`
+// is what to offer when nothing does yet (e.g. before the beverage taxonomy seeder has run).
+export const fetchCategoryTypes = createAsyncThunk(
+  'categories/fetchCategoryTypes',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`${api_url}/v1/admin/category-types`);
+      return response.data?.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || 'Failed to fetch category types');
+    }
+  }
+);
+
 // 2. Get Specific Category Detail (GET)
 export const fetchCategoryById = createAsyncThunk(
   'categories/fetchCategoryById',
@@ -50,14 +65,22 @@ export const fetchCategoryById = createAsyncThunk(
   }
 );
 
+// The upload file field is `image`, not `image_url` — categories don't accept a URL string at
+// all (unlike brands), so a plain string (an existing image, unchanged) is dropped rather than
+// resent; omitting the field is what keeps the existing image on an update.
+const withCategoryImageField = (categoryData) => {
+  const { image_url, ...rest } = categoryData;
+  return image_url instanceof File ? { ...rest, image: image_url } : rest;
+};
+
 // 3. Create Category (POST) - Handles both JSON & Multipart Image Uploads
 export const createCategory = createAsyncThunk(
   'categories/createCategory',
   async (categoryData, { rejectWithValue }) => {
     try {
       const hasFile = categoryData.image_url instanceof File;
-      const payload = hasFile ? prepareFormData(categoryData) : categoryData;
-      
+      const payload = hasFile ? prepareFormData(withCategoryImageField(categoryData)) : withCategoryImageField(categoryData);
+
       const response = await api.post(`${api_url}/v1/admin/categories`, payload, {
         headers: hasFile ? { 'Content-Type': 'multipart/form-data' } : undefined,
       });
@@ -75,17 +98,17 @@ export const updateCategory = createAsyncThunk(
     try {
       const hasFile = categoryData.image_url instanceof File;
       let response;
-      
+
       if (hasFile) {
         // PHP never populates uploaded files on PUT/PATCH bodies, so multipart updates must go
         // over POST with Laravel's _method spoof field to still hit the PUT route/controller.
-        const payload = prepareFormData(categoryData);
+        const payload = prepareFormData(withCategoryImageField(categoryData));
         payload.append('_method', 'PUT');
         response = await api.post(`${api_url}/v1/admin/categories/${id}`, payload, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
       } else {
-        response = await api.put(`${api_url}/v1/admin/categories/${id}`, categoryData);
+        response = await api.put(`${api_url}/v1/admin/categories/${id}`, withCategoryImageField(categoryData));
       }
       return response.data?.data;
     } catch (err) {
@@ -113,6 +136,8 @@ const categoriesSlice = createSlice({
     categories: [],
     currentCategory: null,
     pagination: null,
+    categoryTypes: [],
+    suggestedTypes: [],
     loading: false,
     mutationLoading: false,
     error: null,
@@ -137,6 +162,12 @@ const categoriesSlice = createSlice({
         state.pagination = action.payload?.meta || action.payload?.pagination || null;
       })
       .addCase(fetchCategories.rejected, (state, action) => { state.loading = false; state.error = action.payload; })
+
+      // Fetch Types (for the picker)
+      .addCase(fetchCategoryTypes.fulfilled, (state, action) => {
+        state.categoryTypes = action.payload?.types || [];
+        state.suggestedTypes = action.payload?.suggested || [];
+      })
 
       // Fetch Individual
       .addCase(fetchCategoryById.pending, (state) => { state.loading = true; state.error = null; })

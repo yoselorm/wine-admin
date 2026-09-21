@@ -47,14 +47,23 @@ export const fetchBrandById = createAsyncThunk(
   }
 );
 
+// The upload file field is `logo`, not `logo_url` — the API's own OpenAPI spec only documented
+// the URL string field, so this went unnoticed until confirmed against the real backend. A plain
+// string in `logo_url` (an existing image being kept, or the brand's only ever had a URL) still
+// goes out under that name, since brands are the one endpoint that accepts a URL as well as a file.
+const withLogoFileField = (brandData) => {
+  const { logo_url, ...rest } = brandData;
+  return logo_url instanceof File ? { ...rest, logo: logo_url } : brandData;
+};
+
 // 3. Create Brand (POST) - Handles both JSON & Multipart Logo Uploads
 export const createBrand = createAsyncThunk(
   'brands/createBrand',
   async (brandData, { rejectWithValue }) => {
     try {
       const hasFile = brandData.logo_url instanceof File;
-      const payload = hasFile ? prepareFormData(brandData) : brandData;
-      
+      const payload = hasFile ? prepareFormData(withLogoFileField(brandData)) : brandData;
+
       const response = await api.post(`${api_url}/v1/admin/brands`, payload, {
         headers: hasFile ? { 'Content-Type': 'multipart/form-data' } : undefined,
       });
@@ -76,7 +85,7 @@ export const updateBrand = createAsyncThunk(
       if (hasFile) {
         // PHP never populates uploaded files on PUT/PATCH bodies, so multipart updates must go
         // over POST with Laravel's _method spoof field to still hit the PUT route/controller.
-        const payload = prepareFormData(brandData);
+        const payload = prepareFormData(withLogoFileField(brandData));
         payload.append('_method', 'PUT');
         response = await api.post(`${api_url}/v1/admin/brands/${id}`, payload, {
           headers: { 'Content-Type': 'multipart/form-data' },
