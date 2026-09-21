@@ -23,6 +23,8 @@ import { fetchFoodDishes } from "../redux/FoodDishSlice";
 import { fetchWineAttributes } from "../redux/WineAttributeSlice";
 import { fetchWineCharacteristics } from "../redux/WineCharacteristicSlice";
 import { TASTING_AXES } from "../utils/tastingAxes";
+import { ATTRIBUTE_TYPES, ATTRIBUTE_TYPE_LABEL } from "../utils/wineAttributeTypes";
+import { useDebouncedValue } from "../utils/useDebouncedValue";
 import Card from "../components/ui/Card";
 import Button from "../components/ui/Button";
 import Switch from "../components/ui/Switch";
@@ -115,7 +117,7 @@ const ProductForm = () => {
   const { regions, pagination: regionPagination } = useSelector((state) => state.wineRegions || { items: [] });
   const { posts: blogs } = useSelector((state) => state.blogs || { items: [] });
   const { foodDishes: dishes } = useSelector((state) => state.foodDishes || { items: [] });
-  const { attributes: allWineAttributes } = useSelector((state) => state.wineAttributes || { attributes: [] });
+  const { attributes: wineAttributesPage, pagination: attributePagination } = useSelector((state) => state.wineAttributes || { attributes: [] });
   const { characteristics: allWineCharacteristics } = useSelector((state) => state.wineCharacteristics || { characteristics: [] });
 
   const [formData, setFormData] = useState(initialFormState);
@@ -131,35 +133,44 @@ const ProductForm = () => {
   const [regionCache, setRegionCache] = useState({});
   const [blogSearch, setBlogSearch] = useState("");
   const [axisDraft, setAxisDraft] = useState({ axis: "bold", score: "5" });
-  const [attributeTypeFilter, setAttributeTypeFilter] = useState("");
+  const [attributeTypeFilter, setAttributeTypeFilter] = useState(ATTRIBUTE_TYPES[0].value);
+  const [attributeSearch, setAttributeSearch] = useState("");
+  const [attributePage, setAttributePage] = useState(1);
   const [pairingDraft, setPairingDraft] = useState({ dish_id: "", reason: "", pairing_type: "international" });
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [previewModalOpen, setPreviewModalOpen] = useState(false);
   const [aiInput, setAiInput] = useState(initialDraftInput);
   const [showAiPanel, setShowAiPanel] = useState(false);
 
+  // These three drive a network request per change, so debounce them — typing a full word
+  // should fire one fetch, not one per keystroke.
+  const debouncedCategorySearch = useDebouncedValue(categorySearch);
+  const debouncedRegionSearch = useDebouncedValue(regionSearch);
+  const debouncedAttributeSearch = useDebouncedValue(attributeSearch);
+
   useEffect(() => {
     dispatch(fetchBrands());
     dispatch(fetchBlogs());
     dispatch(fetchFoodDishes());
-    // Reference data for the "choose instead of type" pickers below — see WineAttributes.js / WineCharacteristics.js.
-    dispatch(fetchWineAttributes({ per_page: 500 }));
+    // Reference data for the "choose instead of type" characteristics picker — see WineCharacteristics.js.
     dispatch(fetchWineCharacteristics({ per_page: 500 }));
     if (isEditing) dispatch(fetchProductById(id));
     return () => dispatch(clearCurrentProduct());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Attributes are picked the same way categories are: choose a type, pick from that type's
-  // known values. Both dimensions come from the Wine Attributes catalog, not typed by hand.
-  const attributeTypes = [...new Set((allWineAttributes || []).map((a) => a.attribute_type).filter(Boolean))].sort();
-  const attributeValuesForType = (allWineAttributes || []).filter((a) => a.attribute_type === attributeTypeFilter);
-  const selectedWineAttributes = formData.wine_attributes || [];
+  // Attributes are picked the same way categories are: choose a type, page through that type's
+  // known values fetched from the server — see WineAttributes.js. Selection itself stores the
+  // full {attribute_type, value} pair on the product, so paging away never loses what's picked.
+  useEffect(() => {
+    dispatch(fetchWineAttributes({ type: attributeTypeFilter, search: debouncedAttributeSearch || undefined, page: attributePage, per_page: PICKER_PAGE_SIZE }));
+  }, [dispatch, attributeTypeFilter, debouncedAttributeSearch, attributePage]);
 
   useEffect(() => {
-    if (!attributeTypeFilter && attributeTypes.length) setAttributeTypeFilter(attributeTypes[0]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [attributeTypes.length]);
+    setAttributePage(1);
+  }, [attributeTypeFilter, debouncedAttributeSearch]);
+
+  const selectedWineAttributes = formData.wine_attributes || [];
 
   const toggleWineAttribute = (attribute_type, value) => {
     setFormData((prev) => {
@@ -178,20 +189,20 @@ const ProductForm = () => {
   const axisOptions = [...new Set([...TASTING_AXES.map((a) => a.key), ...(allWineCharacteristics || []).map((c) => c.axis)].filter(Boolean))].sort();
 
   useEffect(() => {
-    dispatch(fetchCategories({ type: categoryTypeFilter, search: categorySearch || undefined, page: categoryPage, per_page: PICKER_PAGE_SIZE }));
-  }, [dispatch, categoryTypeFilter, categorySearch, categoryPage]);
+    dispatch(fetchCategories({ type: categoryTypeFilter, search: debouncedCategorySearch || undefined, page: categoryPage, per_page: PICKER_PAGE_SIZE }));
+  }, [dispatch, categoryTypeFilter, debouncedCategorySearch, categoryPage]);
 
   useEffect(() => {
     setCategoryPage(1);
-  }, [categoryTypeFilter, categorySearch]);
+  }, [categoryTypeFilter, debouncedCategorySearch]);
 
   useEffect(() => {
-    dispatch(fetchWineRegions({ search: regionSearch || undefined, page: regionPage, per_page: PICKER_PAGE_SIZE }));
-  }, [dispatch, regionSearch, regionPage]);
+    dispatch(fetchWineRegions({ search: debouncedRegionSearch || undefined, page: regionPage, per_page: PICKER_PAGE_SIZE }));
+  }, [dispatch, debouncedRegionSearch, regionPage]);
 
   useEffect(() => {
     setRegionPage(1);
-  }, [regionSearch]);
+  }, [debouncedRegionSearch]);
 
   // Every page of results we've ever fetched gets folded into the lookup cache, so a category
   // picked on an earlier page/tab keeps its label in the "selected" summary indefinitely.
@@ -842,8 +853,8 @@ const ProductForm = () => {
 
         <Card title="Wine Attributes">
           <p className="text-xs text-gray-400 mb-3">
-            Free-form facts — closure type, residual sugar, oak treatment. Pick a type, then choose from
-            that type's known values — defined on the{' '}
+            Grape blend, colour note, bottle size, allergens. Pick a type, then choose from that
+            type's known values — new values are added on the{' '}
             <button type="button" onClick={() => navigate('/dashboard/wine-attributes')} className="text-violet-600 hover:underline">
               Wine Attributes
             </button> page.
@@ -854,7 +865,7 @@ const ProductForm = () => {
               {selectedWineAttributes.map((a, i) => (
                 <button key={i} type="button" onClick={() => toggleWineAttribute(a.attribute_type, a.value)}
                   className="flex items-center gap-1 pl-2.5 pr-1.5 py-1 text-xs font-medium bg-violet-50 text-violet-700 border border-violet-100 rounded-full hover:bg-violet-100">
-                  <span className="text-[10px] text-violet-400 uppercase font-bold">{a.attribute_type}</span>
+                  <span className="text-[10px] text-violet-400 uppercase font-bold">{ATTRIBUTE_TYPE_LABEL[a.attribute_type] || a.attribute_type}</span>
                   {a.value}
                   <X size={11} />
                 </button>
@@ -862,44 +873,51 @@ const ProductForm = () => {
             </div>
           )}
 
-          {attributeTypes.length === 0 ? (
-            <p className="text-xs text-gray-400 italic py-1">
-              No attributes defined yet — add some on the{' '}
-              <button type="button" onClick={() => navigate('/dashboard/wine-attributes')} className="text-violet-600 hover:underline">Wine Attributes</button> page.
-            </p>
-          ) : (
-            <>
-              <div className="flex gap-1.5 mb-2.5 flex-wrap">
-                {attributeTypes.map((type) => {
-                  const count = selectedWineAttributes.filter((a) => a.attribute_type === type).length;
-                  return (
-                    <button key={type} type="button" onClick={() => setAttributeTypeFilter(type)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-colors ${
-                        attributeTypeFilter === type ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-                      }`}>
-                      {type}
-                      {count > 0 && (
-                        <span className={`text-[10px] rounded-full w-4 h-4 flex items-center justify-center ${
-                          attributeTypeFilter === type ? "bg-white/20" : "bg-violet-100 text-violet-600"
-                        }`}>{count}</span>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {attributeValuesForType.length === 0 ? (
-                  <p className="text-xs text-gray-400 italic py-1">No values recorded for {attributeTypeFilter} yet.</p>
-                ) : (
-                  attributeValuesForType.map((a) => (
-                    <Pill key={a.id} active={selectedWineAttributes.some((s) => s.attribute_type === a.attribute_type && s.value === a.value)}
-                      onClick={() => toggleWineAttribute(a.attribute_type, a.value)}>
-                      {a.value}
-                    </Pill>
-                  ))
-                )}
-              </div>
-            </>
+          <div className="flex items-center justify-between gap-2 mb-2.5 flex-wrap">
+            <div className="flex gap-1.5 flex-wrap">
+              {ATTRIBUTE_TYPES.map((t) => {
+                const count = selectedWineAttributes.filter((a) => a.attribute_type === t.value).length;
+                return (
+                  <button key={t.value} type="button" onClick={() => setAttributeTypeFilter(t.value)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border transition-colors ${
+                      attributeTypeFilter === t.value ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                    }`}>
+                    {t.label}
+                    {count > 0 && (
+                      <span className={`text-[10px] rounded-full w-4 h-4 flex items-center justify-center ${
+                        attributeTypeFilter === t.value ? "bg-white/20" : "bg-violet-100 text-violet-600"
+                      }`}>{count}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="relative flex-shrink-0">
+              <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input type="text" placeholder={`Search ${ATTRIBUTE_TYPE_LABEL[attributeTypeFilter]?.toLowerCase()}...`}
+                value={attributeSearch} onChange={(e) => setAttributeSearch(e.target.value)}
+                className="pl-7 pr-2 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500 w-40" />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 min-h-[34px]">
+            {(wineAttributesPage || []).length === 0 ? (
+              <p className="text-xs text-gray-400 italic py-1">
+                No {ATTRIBUTE_TYPE_LABEL[attributeTypeFilter]?.toLowerCase()} values yet — add one on the{' '}
+                <button type="button" onClick={() => navigate('/dashboard/wine-attributes')} className="text-violet-600 hover:underline">Wine Attributes</button> page.
+              </p>
+            ) : (
+              wineAttributesPage.map((a) => (
+                <Pill key={a.id} active={selectedWineAttributes.some((s) => s.attribute_type === a.attribute_type && s.value === a.value)}
+                  onClick={() => toggleWineAttribute(a.attribute_type, a.value)}>
+                  {a.value}
+                </Pill>
+              ))
+            )}
+          </div>
+          {attributePagination && attributePagination.last_page > 1 && (
+            <div className="mt-2.5">
+              <Pagination meta={attributePagination} onPageChange={setAttributePage} compact />
+            </div>
           )}
         </Card>
 

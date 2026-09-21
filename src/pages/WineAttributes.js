@@ -12,8 +12,9 @@ import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Pagination from '../components/Pagination';
 import { paginateLocal } from '../utils/paginateLocal';
+import { ATTRIBUTE_TYPES, ATTRIBUTE_TYPE_LABEL } from '../utils/wineAttributeTypes';
 
-const emptyDetail = { attribute_type: '', value: '' };
+const emptyDetail = { attribute_type: ATTRIBUTE_TYPES[0].value, value: '' };
 const PER_PAGE = 12;
 
 // A catalog of (type, value) facts — closure, residual sugar, oak treatment — not tied to any one
@@ -61,8 +62,6 @@ const WineAttributes = () => {
     if (attr) setDetail({ attribute_type: attr.attribute_type || '', value: attr.value ?? '' });
   }, [selectedId, attributes]);
 
-  const knownTypes = [...new Set((attributes || []).map((a) => a.attribute_type).filter(Boolean))].sort();
-
   const handleAddNew = () => {
     if (!newAttr.attribute_type.trim() || !newAttr.value.trim()) return;
     dispatch(createWineAttribute(newAttr));
@@ -88,8 +87,8 @@ const WineAttributes = () => {
       <div>
         <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Wine Attributes</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Free-form facts — closure type, residual sugar, oak treatment. For the eight fixed
-          tasting scores, see Wine Characteristics instead.
+          Grape blend, colour note, bottle size and allergens — for the tasting-score axes, see
+          Wine Characteristics instead.
         </p>
       </div>
 
@@ -120,7 +119,7 @@ const WineAttributes = () => {
                 >
                   <div className="min-w-0">
                     <p className={`text-sm font-semibold truncate ${selectedId === attr.id ? 'text-violet-700' : 'text-gray-900'}`}>
-                      {attr.attribute_type}: <span className="font-normal text-gray-600">{attr.value}</span>
+                      {ATTRIBUTE_TYPE_LABEL[attr.attribute_type] || attr.attribute_type}: <span className="font-normal text-gray-600">{attr.value}</span>
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">{attr.products_count ?? 0} product{attr.products_count === 1 ? '' : 's'}</p>
                   </div>
@@ -137,15 +136,13 @@ const WineAttributes = () => {
           <div className="p-4 border-t border-gray-100 flex-shrink-0 space-y-2">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">New Attribute</p>
             <div className="flex gap-2">
-              <input list="known-attribute-types" type="text" value={newAttr.attribute_type}
-                onChange={(e) => setNewAttr((a) => ({ ...a, attribute_type: e.target.value }))}
-                placeholder="Type, e.g. Closure" className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+              <select value={newAttr.attribute_type} onChange={(e) => setNewAttr((a) => ({ ...a, attribute_type: e.target.value }))}
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md bg-white focus:outline-none focus:border-violet-500">
+                {ATTRIBUTE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
               <input type="text" value={newAttr.value} onChange={(e) => setNewAttr((a) => ({ ...a, value: e.target.value }))}
                 placeholder="Value" className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
             </div>
-            <datalist id="known-attribute-types">
-              {knownTypes.map((t) => <option key={t} value={t} />)}
-            </datalist>
             <button onClick={handleAddNew} disabled={mutationLoading}
               className="w-full py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
               {mutationLoading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add Attribute
@@ -164,9 +161,10 @@ const WineAttributes = () => {
               <div className="grid grid-cols-2 gap-x-4 gap-y-5 text-sm">
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Attribute Type <span className="text-red-500">*</span></label>
-                  <input list="known-attribute-types" type="text" value={detail.attribute_type}
-                    onChange={(e) => setDetail((p) => ({ ...p, attribute_type: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+                  <select value={detail.attribute_type} onChange={(e) => setDetail((p) => ({ ...p, attribute_type: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-200 bg-white rounded-md focus:outline-none focus:border-violet-500">
+                    {ATTRIBUTE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Value <span className="text-red-500">*</span></label>
