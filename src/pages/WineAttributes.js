@@ -13,6 +13,7 @@ import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Pagination from '../components/Pagination';
 import TypeCombobox from '../components/TypeCombobox';
+import ValueField from '../components/ValueField';
 import { paginateLocal } from '../utils/paginateLocal';
 
 const humanizeType = (t) => t.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -25,7 +26,7 @@ const PER_PAGE = 12;
 // still accepts free text — a spirit needs `age_statement`, a wine needs `grape_blend`.
 const WineAttributes = () => {
   const dispatch = useDispatch();
-  const { attributes, inUseTypes, suggestedTypes, loading, mutationLoading, error, successMessage } = useSelector((s) => s.wineAttributes);
+  const { attributes, types, inUseTypes, suggestedTypes, loading, mutationLoading, error, successMessage } = useSelector((s) => s.wineAttributes);
 
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(emptyDetail);
@@ -40,6 +41,8 @@ const WineAttributes = () => {
       .map((s) => ({ value: s.attribute_type, label: humanizeType(s.attribute_type), hint: s.hint })),
   ];
   const hintFor = (value) => typeOptions.find((t) => t.value === value)?.hint;
+  // The full type row, which is what says whether the value is picked from a shared list or typed.
+  const typeFor = (key) => (types || []).find((t) => t.key === key);
 
   useEffect(() => {
     dispatch(fetchWineAttributes({ per_page: 500 }));
@@ -149,8 +152,9 @@ const WineAttributes = () => {
             <div className="flex gap-2 items-start">
               <TypeCombobox value={newAttr.attribute_type} onChange={(v) => setNewAttr((a) => ({ ...a, attribute_type: v }))}
                 options={typeOptions} className="flex-1" />
-              <input type="text" maxLength={500} value={newAttr.value} onChange={(e) => setNewAttr((a) => ({ ...a, value: e.target.value }))}
-                placeholder={hintFor(newAttr.attribute_type) || 'Value'} className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+              <ValueField type={typeFor(newAttr.attribute_type)} value={newAttr.value}
+                onChange={(v) => setNewAttr((a) => ({ ...a, value: v }))}
+                placeholder={hintFor(newAttr.attribute_type) || 'Value'} className="flex-1" />
             </div>
             <button onClick={handleAddNew} disabled={mutationLoading}
               className="w-full py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
@@ -174,9 +178,9 @@ const WineAttributes = () => {
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Value <span className="text-red-500">*</span></label>
-                  <input type="text" maxLength={500} value={detail.value} onChange={(e) => setDetail((p) => ({ ...p, value: e.target.value }))}
-                    placeholder={hintFor(detail.attribute_type) || undefined}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+                  <ValueField type={typeFor(detail.attribute_type)} value={detail.value}
+                    onChange={(v) => setDetail((p) => ({ ...p, value: v }))}
+                    placeholder={hintFor(detail.attribute_type) || undefined} />
                   {hintFor(detail.attribute_type) && (
                     <p className="text-xs text-gray-400 mt-1">{hintFor(detail.attribute_type)}</p>
                   )}

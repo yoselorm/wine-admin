@@ -22,6 +22,12 @@ export const fetchWineAttributes = createAsyncThunk(
 // how many products carry it; `suggested` is grouped `shared` (always relevant) plus one group
 // per beverage class (wine/spirit/beer/non_alcoholic) — offer `shared` plus whichever class group
 // matches the product being edited.
+//
+// `types` is the same vocabulary as real rows, and carries the one field that changes how the form
+// behaves: `is_enumerated`. A type with a shared list of values (bottle_size, allergens) keeps them
+// in `values` and every product points at the same row, so fixing a spelling fixes every product at
+// once. A type without one (colour_note, grape_blend) stores prose on each product, and there is
+// nothing to pick from.
 export const fetchAttributeTypes = createAsyncThunk(
   'wineAttributes/fetchTypes',
   async (_, { rejectWithValue }) => {
@@ -82,6 +88,7 @@ export const deleteWineAttribute = createAsyncThunk(
 const initialState = {
   attributes: [],
   pagination: null,
+  types: [],
   inUseTypes: [],
   suggestedTypes: { shared: [], wine: [], spirit: [], beer: [], non_alcoholic: [] },
   loading: false,
@@ -118,6 +125,7 @@ const wineAttributeSlice = createSlice({
 
       // --- Fetch Types (for the picker) ---
       .addCase(fetchAttributeTypes.fulfilled, (state, action) => {
+        state.types = action.payload?.types || [];
         state.inUseTypes = action.payload?.in_use || [];
         state.suggestedTypes = action.payload?.suggested || initialState.suggestedTypes;
       })
