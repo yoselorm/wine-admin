@@ -12,6 +12,7 @@ import { Loader2, Plus, Search } from 'lucide-react';
 import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Pagination from '../components/Pagination';
+import TypeCombobox from '../components/TypeCombobox';
 import { paginateLocal } from '../utils/paginateLocal';
 
 const humanizeType = (t) => t.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -145,20 +146,12 @@ const WineAttributes = () => {
           )}
           <div className="p-4 border-t border-gray-100 flex-shrink-0 space-y-2">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">New Attribute</p>
-            <div className="flex gap-2">
-              <input list="attribute-type-options" type="text" value={newAttr.attribute_type}
-                onChange={(e) => setNewAttr((a) => ({ ...a, attribute_type: e.target.value.toLowerCase() }))}
-                placeholder="Type, e.g. bottle_size" pattern="^[a-z][a-z0-9_]*$"
-                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+            <div className="flex gap-2 items-start">
+              <TypeCombobox value={newAttr.attribute_type} onChange={(v) => setNewAttr((a) => ({ ...a, attribute_type: v }))}
+                options={typeOptions} className="flex-1" />
               <input type="text" maxLength={500} value={newAttr.value} onChange={(e) => setNewAttr((a) => ({ ...a, value: e.target.value }))}
                 placeholder={hintFor(newAttr.attribute_type) || 'Value'} className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
             </div>
-            <datalist id="attribute-type-options">
-              {typeOptions.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </datalist>
-            {newAttr.attribute_type && !/^[a-z][a-z0-9_]*$/.test(newAttr.attribute_type) && (
-              <p className="text-xs text-red-500">Lowercase letters, numbers and underscores only, starting with a letter.</p>
-            )}
             <button onClick={handleAddNew} disabled={mutationLoading}
               className="w-full py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
               {mutationLoading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add Attribute
@@ -177,9 +170,7 @@ const WineAttributes = () => {
               <div className="grid grid-cols-2 gap-x-4 gap-y-5 text-sm">
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Attribute Type <span className="text-red-500">*</span></label>
-                  <input list="attribute-type-options" type="text" value={detail.attribute_type}
-                    onChange={(e) => setDetail((p) => ({ ...p, attribute_type: e.target.value.toLowerCase() }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+                  <TypeCombobox value={detail.attribute_type} onChange={(v) => setDetail((p) => ({ ...p, attribute_type: v }))} options={typeOptions} />
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Value <span className="text-red-500">*</span></label>

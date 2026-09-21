@@ -15,6 +15,7 @@ import Badge from '../components/ui/Badge';
 import Pagination from '../components/Pagination';
 import RichTextEditor from '../components/RichTextEditor';
 import ImagePreview from '../components/ImagePreview';
+import TypeCombobox from '../components/TypeCombobox';
 import { paginateLocal } from '../utils/paginateLocal';
 
 // `food_pairing` is a legacy type the API still refuses with a 422 explaining pairings belong
@@ -175,15 +176,7 @@ const Categories = () => {
               placeholder="Name, e.g. Fortified Wine"
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500"
             />
-            <input list="category-type-options" type="text" value={newType} onChange={(e) => setNewType(e.target.value.toLowerCase())}
-              placeholder="Type, e.g. wine_type" pattern="^[a-z][a-z0-9_]*$"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
-            <datalist id="category-type-options">
-              {typeOptions.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </datalist>
-            {newType && !/^[a-z][a-z0-9_]*$/.test(newType) && (
-              <p className="text-xs text-red-500">Lowercase letters, numbers and underscores only, starting with a letter.</p>
-            )}
+            <TypeCombobox value={newType} onChange={setNewType} options={typeOptions} placeholder="e.g. wine_type" />
             <button onClick={handleAddNew} disabled={mutationLoading}
               className="w-full py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
               {mutationLoading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add Category
@@ -212,9 +205,7 @@ const Categories = () => {
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Type <span className="text-red-500">*</span></label>
-                  <input list="category-type-options" type="text" value={detail.type}
-                    onChange={(e) => setDetail((p) => ({ ...p, type: e.target.value.toLowerCase() }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+                  <TypeCombobox value={detail.type} onChange={(v) => setDetail((p) => ({ ...p, type: v }))} options={typeOptions} placeholder="e.g. wine_type" />
                   <p className="text-xs text-gray-400 mt-1">
                     The taxonomy is flat — grapes aren't nested under a colour.
                     {typeInfo(detail.type) && !typeInfo(detail.type).used_by_sommelier && (
