@@ -104,8 +104,9 @@ const WineAttributes = () => {
       <div>
         <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Wine Attributes</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Free-form catalogue facts — bottle size, allergens, cask type, age statement and more —
-          for the tasting-score axes, see Wine Characteristics instead.
+          Every attribute on every product — bottle size, allergens, cask type and more. A value
+          repeats down the list because each row belongs to a different wine; to rename one
+          everywhere at once, use Attribute Vocabulary. For tasting scores, see Wine Characteristics.
         </p>
       </div>
 
@@ -116,7 +117,7 @@ const WineAttributes = () => {
             <h3 className="text-sm font-bold text-gray-900">All Attributes</h3>
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-300" />
-              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search type or value..."
+              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search wine, type or value..."
                 className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
             </div>
           </div>
@@ -138,7 +139,10 @@ const WineAttributes = () => {
                     <p className={`text-sm font-semibold truncate ${selectedId === attr.id ? 'text-violet-700' : 'text-gray-900'}`}>
                       {humanizeType(attr.attribute_type)}: <span className="font-normal text-gray-600">{attr.value}</span>
                     </p>
-                    <p className="text-xs text-gray-400 mt-0.5">{attr.products_count ?? 0} product{attr.products_count === 1 ? '' : 's'}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 truncate">
+                      {attr.product?.name || 'Unknown wine'}
+                      {attr.products_count > 1 && <span className="text-gray-300"> · {attr.products_count} share this value</span>}
+                    </p>
                   </div>
                   <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(attr); }} className="text-gray-300 hover:text-red-500 text-lg leading-none flex-shrink-0 pl-2">×</button>
                 </div>
@@ -174,7 +178,10 @@ const WineAttributes = () => {
           ) : (
             <div className="p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-1">Attribute Details</h3>
-              <p className="text-xs text-gray-400 mb-5">{selected.products_count ?? 0} product{selected.products_count === 1 ? '' : 's'} carry this attribute</p>
+              <p className="text-xs text-gray-400 mb-5">
+                {selected.product?.name || 'Unknown wine'}
+                {selected.products_count > 1 && <span className="text-gray-300"> · {selected.products_count} products share this value</span>}
+              </p>
               <div className="grid grid-cols-2 gap-x-4 gap-y-5 text-sm">
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Attribute Type <span className="text-red-500">*</span></label>
