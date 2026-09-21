@@ -121,7 +121,7 @@ const ProductForm = () => {
   const { regions, pagination: regionPagination } = useSelector((state) => state.wineRegions || { items: [] });
   const { posts: blogs } = useSelector((state) => state.blogs || { items: [] });
   const { foodDishes: dishes } = useSelector((state) => state.foodDishes || { items: [] });
-  const { attributes: wineAttributesPage, inUseTypes, suggestedTypes: suggestedAttributeTypes, pagination: attributePagination } = useSelector((state) => state.wineAttributes || { attributes: [] });
+  const { attributes: wineAttributesPage, types: attributeTypes, inUseTypes, suggestedTypes: suggestedAttributeTypes, pagination: attributePagination } = useSelector((state) => state.wineAttributes || { attributes: [] });
   const { characteristics: allWineCharacteristics } = useSelector((state) => state.wineCharacteristics || { characteristics: [] });
 
   // Pick a type first, then choose from just that type's values, so a 60-grape list doesn't
@@ -490,6 +490,26 @@ const ProductForm = () => {
     ...(inUseTypes || []).filter((t) => !suggestedAttributeGroup.some((s) => s.attribute_type === t.attribute_type))
       .map((t) => ({ value: t.attribute_type, label: humanizeType(t.attribute_type), hint: null })),
   ];
+
+  const selectedAttributeType = (attributeTypes || []).find((t) => t.key === attributeTypeFilter);
+
+  // What to offer for the chosen type.
+  //
+  // A type with a shared vocabulary has its values in one place already, deduplicated: bottle_size
+  // is eleven values, allergens is one. Listing the pivot rows instead put one pill on screen per
+  // *product* carrying the attribute — 142 of them reading "75CL", spread over seventeen pages,
+  // and ten identical "Contains Sulphites" in a row. The rows were never the vocabulary.
+  //
+  // A type without one holds prose belonging to a single product, so there the rows are all there
+  // is to offer; they are deduplicated by text, since two products can still word a colour note
+  // identically.
+  const attributeValueOptions = selectedAttributeType?.is_enumerated
+    ? (selectedAttributeType.values || [])
+        .filter((v) => !attributeSearch || v.value.toLowerCase().includes(attributeSearch.toLowerCase()))
+        .map((v) => ({ key: v.id, value: v.value }))
+    : Array.from(
+        new Map((wineAttributesPage || []).map((a) => [a.value, { key: a.id, value: a.value }])).values()
+      );
 
   useEffect(() => {
     if (!attributeTypeFilter && attributeTypeOptions.length) setAttributeTypeFilter(attributeTypeOptions[0].value);
@@ -954,21 +974,24 @@ const ProductForm = () => {
             <p className="text-xs text-gray-400 -mt-1.5 mb-2">{attributeTypeOptions.find((t) => t.value === attributeTypeFilter).hint}</p>
           )}
           <div className="flex flex-wrap gap-2 min-h-[34px]">
-            {(wineAttributesPage || []).length === 0 ? (
+            {attributeValueOptions.length === 0 ? (
               <p className="text-xs text-gray-400 italic py-1">
                 No {(attributeTypeFilter ? humanizeType(attributeTypeFilter) : "").toLowerCase()} values yet — add one on the{' '}
-                <button type="button" onClick={() => navigate('/dashboard/wine-attributes')} className="text-violet-600 hover:underline">Wine Attributes</button> page.
+                <button type="button" onClick={() => navigate(selectedAttributeType?.is_enumerated ? '/dashboard/attribute-vocabulary' : '/dashboard/wine-attributes')}
+                  className="text-violet-600 hover:underline">
+                  {selectedAttributeType?.is_enumerated ? 'Attribute Vocabulary' : 'Wine Attributes'}
+                </button> page.
               </p>
             ) : (
-              wineAttributesPage.map((a) => (
-                <Pill key={a.id} active={selectedWineAttributes.some((s) => s.attribute_type === a.attribute_type && s.value === a.value)}
-                  onClick={() => toggleWineAttribute(a.attribute_type, a.value)}>
-                  {a.value}
+              attributeValueOptions.map((o) => (
+                <Pill key={o.key} active={selectedWineAttributes.some((s) => s.attribute_type === attributeTypeFilter && s.value === o.value)}
+                  onClick={() => toggleWineAttribute(attributeTypeFilter, o.value)}>
+                  {o.value}
                 </Pill>
               ))
             )}
           </div>
-          {attributePagination && attributePagination.last_page > 1 && (
+          {!selectedAttributeType?.is_enumerated && attributePagination && attributePagination.last_page > 1 && (
             <div className="mt-2.5">
               <Pagination meta={attributePagination} onPageChange={setAttributePage} compact />
             </div>
