@@ -40,6 +40,88 @@ export const fetchAttributeTypes = createAsyncThunk(
   }
 );
 
+// --- The vocabulary itself: the types, and the shared values behind them ---------------------
+//
+// These used to be a config file on the server that nobody could edit without a deploy. The reason
+// they are worth a screen is the rename below: a shared value is carried by every product that uses
+// it, so correcting one spelling corrects all of them at once.
+
+export const createAttributeType = createAsyncThunk(
+  'wineAttributes/createType',
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`${api_url}/v1/admin/attribute-types`, data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to create attribute type.');
+    }
+  }
+);
+
+export const updateAttributeType = createAsyncThunk(
+  'wineAttributes/updateType',
+  async ({ id, data }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`${api_url}/v1/admin/attribute-types/${id}`, data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to update attribute type.');
+    }
+  }
+);
+
+// Refused with a 422 while any product still carries the type. The server's message names how many,
+// so it is passed straight through rather than replaced with something vaguer.
+export const deleteAttributeType = createAsyncThunk(
+  'wineAttributes/deleteType',
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await api.delete(`${api_url}/v1/admin/attribute-types/${id}`);
+      return { id, ...response.data };
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to delete attribute type.');
+    }
+  }
+);
+
+export const createAttributeValue = createAsyncThunk(
+  'wineAttributes/createValue',
+  async ({ typeId, value }, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`${api_url}/v1/admin/attribute-types/${typeId}/values`, { value });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to add value.');
+    }
+  }
+);
+
+// The rename that moves every product carrying this value. A 422 here means another value on the
+// same type already reads that way — the server refuses rather than quietly merging the two.
+export const updateAttributeValue = createAsyncThunk(
+  'wineAttributes/updateValue',
+  async ({ id, data }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`${api_url}/v1/admin/attribute-values/${id}`, data);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to rename value.');
+    }
+  }
+);
+
+export const deleteAttributeValue = createAsyncThunk(
+  'wineAttributes/deleteValue',
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await api.delete(`${api_url}/v1/admin/attribute-values/${id}`);
+      return { id, ...response.data };
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to delete value.');
+    }
+  }
+);
+
 // 2. Create New Wine Attribute (Payload: product_id, attribute_type, value)
 export const createWineAttribute = createAsyncThunk(
   'wineAttributes/create',
@@ -158,6 +240,26 @@ const wineAttributeSlice = createSlice({
         state.error = action.payload;
       })
 
+      // --- Vocabulary (types and their shared values) ---
+      //
+      // None of these merge into local state: every one of them can change rows the list is already
+      // showing — a rename moves every product on that value — so the page refetches instead of
+      // trying to reconcile by hand.
+      .addCase(deleteAttributeType.fulfilled, (state, action) => {
+        state.mutationLoading = false;
+        state.types = state.types.filter((t) => t.id !== action.payload.id);
+        state.successMessage = action.payload.message || 'Attribute type removed.';
+      })
+      // A 204 carries no body, so there is no server message to pass on here.
+      .addCase(deleteAttributeValue.fulfilled, (state, action) => {
+        state.mutationLoading = false;
+        state.types = state.types.map((t) => ({
+          ...t,
+          values: (t.values || []).filter((v) => v.id !== action.payload.id),
+        }));
+        state.successMessage = 'Value removed.';
+      })
+
       // --- Delete ---
       .addCase(deleteWineAttribute.pending, (state) => {
         state.mutationLoading = true;
@@ -171,7 +273,25 @@ const wineAttributeSlice = createSlice({
       .addCase(deleteWineAttribute.rejected, (state, action) => {
         state.mutationLoading = false;
         state.error = action.payload;
-      });
+      })
+
+      // Every vocabulary mutation shares one pending/success/failure shape, so they are matched by
+      // suffix rather than listed five times over.
+      .addMatcher(
+        (action) => /^wineAttributes\/(create|update|delete)(Type|Value)\/pending$/.test(action.type),
+        (state) => { state.mutationLoading = true; state.error = null; },
+      )
+      .addMatcher(
+        (action) => /^wineAttributes\/(create|update)(Type|Value)\/fulfilled$/.test(action.type),
+        (state, action) => {
+          state.mutationLoading = false;
+          state.successMessage = action.payload?.message || 'Saved.';
+        },
+      )
+      .addMatcher(
+        (action) => /^wineAttributes\/(create|update|delete)(Type|Value)\/rejected$/.test(action.type),
+        (state, action) => { state.mutationLoading = false; state.error = action.payload; },
+      );
   },
 });
 
