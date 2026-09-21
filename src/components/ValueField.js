@@ -28,7 +28,8 @@ const ValueField = ({ type, value, onChange, placeholder, maxLength = 500, class
     );
   }
 
-  const isKnown = options.some((o) => o.value === value);
+  // Same as the type picker above: nothing picked yet is not a new value being typed.
+  const isKnown = !value || options.some((o) => o.value === value);
 
   return (
     <div className={className}>

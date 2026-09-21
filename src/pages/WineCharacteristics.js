@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   fetchWineCharacteristics,
+  fetchTastingAxes,
   createWineCharacteristic,
   updateWineCharacteristic,
   deleteWineCharacteristic,
@@ -10,11 +11,13 @@ import {
 import { Loader2, Plus, Search } from 'lucide-react';
 import toast from '../components/Toast';
 import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
+import ProductPicker from '../components/ProductPicker';
 import Pagination from '../components/Pagination';
 import { TASTING_AXES } from '../utils/tastingAxes';
 import { paginateLocal } from '../utils/paginateLocal';
 
-const emptyDetail = { axis: '', score: '' };
+// product_id is required: a tasting score is a score *of a wine*.
+const emptyDetail = { product_id: '', axis: '', score: '' };
 const PER_PAGE = 12;
 
 const builtInDescription = (axis) => TASTING_AXES.find((a) => a.key === axis.toLowerCase())?.description;
@@ -25,7 +28,7 @@ const builtInDescription = (axis) => TASTING_AXES.find((a) => a.key === axis.toL
 // catalog, the same way Wine Attributes works.
 const WineCharacteristics = () => {
   const dispatch = useDispatch();
-  const { characteristics, loading, mutationLoading, error, successMessage } = useSelector((s) => s.wineCharacteristics);
+  const { characteristics, axes, loading, mutationLoading, error, successMessage } = useSelector((s) => s.wineCharacteristics);
 
   const [selectedId, setSelectedId] = useState(null);
   const [detail, setDetail] = useState(emptyDetail);
@@ -36,6 +39,7 @@ const WineCharacteristics = () => {
 
   useEffect(() => {
     dispatch(fetchWineCharacteristics({ per_page: 500 }));
+    dispatch(fetchTastingAxes());
   }, [dispatch]);
 
   useEffect(() => {
@@ -62,11 +66,17 @@ const WineCharacteristics = () => {
     if (c) setDetail({ axis: c.axis || '', score: c.score ?? '' });
   }, [selectedId, characteristics]);
 
-  const knownAxes = [...new Set([...TASTING_AXES.map((a) => a.key), ...(characteristics || []).map((c) => c.axis)].filter(Boolean))].sort();
+  // The server owns this list — the axes are a closed set of eight, and typing anything else is a
+  // 422. TASTING_AXES stays only as the source of the written descriptions.
+  const knownAxes = (axes || []).map((a) => a.axis);
 
   const handleAddNew = () => {
-    if (!newAxis.axis.trim() || newAxis.score === '') return;
-    dispatch(createWineCharacteristic({ axis: newAxis.axis.trim().toLowerCase(), score: Number(newAxis.score) }));
+    if (!newAxis.product_id || !newAxis.axis.trim() || newAxis.score === '') return;
+    dispatch(createWineCharacteristic({
+      product_id: newAxis.product_id,
+      axis: newAxis.axis.trim().toLowerCase(),
+      score: Number(newAxis.score),
+    }));
     setNewAxis(emptyDetail);
   };
 
@@ -89,8 +99,8 @@ const WineCharacteristics = () => {
       <div>
         <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Wine Characteristics</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Tasting axes scored 0–10 on the product form. Bold, dry, acidity and the rest of the usual
-          eight are here to start with — add new ones as they come up.
+          Every tasting score in the catalogue, scored 0–10. The eight axes are a fixed set — seeing
+          the scores together is how you spot one that covers only a handful of wines.
         </p>
       </div>
 
@@ -101,7 +111,7 @@ const WineCharacteristics = () => {
             <h3 className="text-sm font-bold text-gray-900">All Characteristics</h3>
             <div className="relative">
               <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-300" />
-              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search axis..."
+              <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search wine or axis..."
                 className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
             </div>
           </div>
@@ -123,7 +133,7 @@ const WineCharacteristics = () => {
                     <p className={`text-sm font-semibold truncate capitalize ${selectedId === c.id ? 'text-violet-700' : 'text-gray-900'}`}>
                       {c.axis} <span className="font-normal text-gray-500">· {c.score}</span>
                     </p>
-                    <p className="text-xs text-gray-400 mt-0.5">{c.products_count ?? 0} product{c.products_count === 1 ? '' : 's'}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 truncate">{c.product?.name || 'Unknown wine'}</p>
                   </div>
                   <button onClick={(e) => { e.stopPropagation(); setDeleteTarget(c); }} className="text-gray-300 hover:text-red-500 text-lg leading-none flex-shrink-0 pl-2">×</button>
                 </div>
@@ -137,17 +147,18 @@ const WineCharacteristics = () => {
           )}
           <div className="p-4 border-t border-gray-100 flex-shrink-0 space-y-2">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">New Characteristic</p>
+            <ProductPicker value={newAxis.product_id} onChange={(id) => setNewAxis((a) => ({ ...a, product_id: id }))} />
             <div className="flex gap-2">
-              <input list="known-axes" type="text" value={newAxis.axis}
+              <select value={newAxis.axis}
                 onChange={(e) => setNewAxis((a) => ({ ...a, axis: e.target.value }))}
-                placeholder="Axis, e.g. Oaky" className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
-              <input type="number" min="0" max="10" value={newAxis.score}
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 bg-white rounded-md focus:outline-none focus:border-violet-500">
+                <option value="" disabled>Axis...</option>
+                {knownAxes.map((a) => <option key={a} value={a}>{a}</option>)}
+              </select>
+              <input type="number" min="0" max="10" step="0.1" value={newAxis.score}
                 onChange={(e) => setNewAxis((a) => ({ ...a, score: e.target.value }))}
                 placeholder="0–10" className="w-24 px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
             </div>
-            <datalist id="known-axes">
-              {knownAxes.map((a) => <option key={a} value={a} />)}
-            </datalist>
             <button onClick={handleAddNew} disabled={mutationLoading}
               className="w-full py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50">
               {mutationLoading ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />} Add Characteristic
@@ -162,16 +173,18 @@ const WineCharacteristics = () => {
           ) : (
             <div className="p-6">
               <h3 className="text-lg font-bold text-gray-900 mb-1">Characteristic Details</h3>
-              <p className="text-xs text-gray-400 mb-5">{selected.products_count ?? 0} product{selected.products_count === 1 ? '' : 's'} carry this score</p>
+              <p className="text-xs text-gray-400 mb-5">{selected.product?.name || 'Unknown wine'}</p>
               {builtInDescription(detail.axis) && (
                 <p className="text-xs text-violet-600 bg-violet-50 border border-violet-100 rounded-md px-3 py-2 mb-5">{builtInDescription(detail.axis)}</p>
               )}
               <div className="grid grid-cols-2 gap-x-4 gap-y-5 text-sm">
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Axis <span className="text-red-500">*</span></label>
-                  <input list="known-axes" type="text" value={detail.axis}
+                  <select value={detail.axis}
                     onChange={(e) => setDetail((p) => ({ ...p, axis: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-md focus:outline-none focus:border-violet-500" />
+                    className="w-full px-3 py-2 border border-gray-200 bg-white rounded-md focus:outline-none focus:border-violet-500">
+                    {knownAxes.map((a) => <option key={a} value={a}>{a}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="block font-medium text-gray-700 mb-1.5">Score <span className="text-red-500">*</span></label>

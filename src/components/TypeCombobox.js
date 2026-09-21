@@ -4,7 +4,10 @@ import React from 'react';
 // "+ New type..." (or already holding a value with no matching option) reveals a text field for
 // typing the slug, since `type`/`attribute_type` are now open-ended, not a fixed enum.
 const TypeCombobox = ({ value, onChange, options, placeholder = 'e.g. bottle_size', className = '' }) => {
-  const isKnown = options.some((o) => o.value === value);
+  // An empty value is 'nothing picked yet', not 'a custom one being typed'. Treating it as custom
+  // opened the free-text box on first render, so the form asked for a new type before offering the
+  // existing ones.
+  const isKnown = !value || options.some((o) => o.value === value);
 
   return (
     <div className={className}>

@@ -14,10 +14,13 @@ import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Pagination from '../components/Pagination';
 import TypeCombobox from '../components/TypeCombobox';
 import ValueField from '../components/ValueField';
+import ProductPicker from '../components/ProductPicker';
 import { paginateLocal } from '../utils/paginateLocal';
 
 const humanizeType = (t) => t.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-const emptyDetail = { attribute_type: '', value: '' };
+// product_id is required on create: an attribute is a fact *about a wine*, and the list reading
+// as a free-floating catalogue is what hid that.
+const emptyDetail = { product_id: '', attribute_type: '', value: '' };
 const PER_PAGE = 12;
 
 // A catalog of (type, value) facts — closure, residual sugar, oak treatment, age statement, cask
@@ -77,7 +80,7 @@ const WineAttributes = () => {
   }, [selectedId, attributes]);
 
   const handleAddNew = () => {
-    if (!newAttr.attribute_type.trim() || !newAttr.value.trim()) return;
+    if (!newAttr.product_id || !newAttr.attribute_type.trim() || !newAttr.value.trim()) return;
     dispatch(createWineAttribute(newAttr));
     setNewAttr(emptyDetail);
   };
@@ -149,6 +152,7 @@ const WineAttributes = () => {
           )}
           <div className="p-4 border-t border-gray-100 flex-shrink-0 space-y-2">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">New Attribute</p>
+            <ProductPicker value={newAttr.product_id} onChange={(id) => setNewAttr((a) => ({ ...a, product_id: id }))} />
             <div className="flex gap-2 items-start">
               <TypeCombobox value={newAttr.attribute_type} onChange={(v) => setNewAttr((a) => ({ ...a, attribute_type: v }))}
                 options={typeOptions} className="flex-1" />
