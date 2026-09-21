@@ -22,10 +22,10 @@ const PER_PAGE = 12;
 
 const builtInDescription = (axis) => TASTING_AXES.find((a) => a.key === axis.toLowerCase())?.description;
 
-// Tasting scores used to be a fixed 8-axis constant (bold/dry/acidity/tannic/soft/light/fizzy/
-// sweet) baked into the product form. That list is now just a starting point — an admin can
-// define new axis types here, and the product form's Characteristics picker reads this whole
-// catalog, the same way Wine Attributes works.
+// The eight tasting axes (bold/dry/acidity/tannic/soft/light/fizzy/sweet) are a closed set, unlike
+// attribute types — the server owns the list and refuses anything else by name. This screen is
+// every score in the catalogue rather than one wine at a time, which is the only way a number like
+// "sweet is scored on seven wines out of a hundred and sixty" is visible at all.
 const WineCharacteristics = () => {
   const dispatch = useDispatch();
   const { characteristics, axes, loading, mutationLoading, error, successMessage } = useSelector((s) => s.wineCharacteristics);

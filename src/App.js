@@ -28,8 +28,8 @@ import SalesReportForm from './pages/SalesReportForm';
 import Intelligence from './pages/Intelligence';
 import SommelierTester from './pages/SommelierTester';
 import QuizEditor from './pages/QuizEditor';
-import AttributeVocabulary from './pages/AttributeVocabulary';
-import WineAttributes from './pages/WineAttributes';
+import AttributeTypes from './pages/AttributeTypes';
+import ProductAttributes from './pages/ProductAttributes';
 import WineCharacteristics from './pages/WineCharacteristics';
 import InsightsCatalogue from './pages/InsightsCatalogue';
 import PairingMatrix from './pages/PairingMatrix';
@@ -87,8 +87,11 @@ function App() {
         <Route path="wine-regions" element={<WineRegions/>} />
         <Route path="brands" element={<Brands />} />
         <Route path="food-pairings" element={<FoodAndPairings/>} />
-        <Route path="wine-attributes" element={<WineAttributes/>} />
-        <Route path="attribute-vocabulary" element={<AttributeVocabulary/>} />
+        <Route path="product-attributes" element={<ProductAttributes/>} />
+        <Route path="attribute-types" element={<AttributeTypes/>} />
+        {/* The names these screens shipped under. Kept so an open tab or a pasted link still lands. */}
+        <Route path="wine-attributes" element={<Navigate to="/dashboard/product-attributes" replace />} />
+        <Route path="attribute-vocabulary" element={<Navigate to="/dashboard/attribute-types" replace />} />
         <Route path="wine-characteristics" element={<WineCharacteristics/>} />
         <Route path="quiz-editor" element={<QuizEditor/>} />
 

@@ -180,7 +180,7 @@ const ProductForm = () => {
   }, [categoryTypeOptions.length]);
 
   // Attributes are picked the same way categories are: choose a type, page through that type's
-  // known values fetched from the server — see WineAttributes.js. Selection itself stores the
+  // known values fetched from the server — see ProductAttributes.js. Selection itself stores the
   // full {attribute_type, value} pair on the product, so paging away never loses what's picked.
   useEffect(() => {
     dispatch(fetchWineAttributes({ type: attributeTypeFilter, search: debouncedAttributeSearch || undefined, page: attributePage, per_page: PICKER_PAGE_SIZE }));
@@ -921,13 +921,13 @@ const ProductForm = () => {
           </div>
         </Card>
 
-        <Card title="Wine Attributes">
+        <Card title="Attributes">
           <p className="text-xs text-gray-400 mb-3">
             Bottle size, allergens, colour note and more — plus whatever fits this product's
             beverage class. Pick a type, then choose from that type's known values — new values
             are added on the{' '}
-            <button type="button" onClick={() => navigate('/dashboard/wine-attributes')} className="text-violet-600 hover:underline">
-              Wine Attributes
+            <button type="button" onClick={() => navigate('/dashboard/attribute-types')} className="text-violet-600 hover:underline">
+              Attribute Types &amp; Values
             </button> page.
           </p>
 
@@ -977,9 +977,9 @@ const ProductForm = () => {
             {attributeValueOptions.length === 0 ? (
               <p className="text-xs text-gray-400 italic py-1">
                 No {(attributeTypeFilter ? humanizeType(attributeTypeFilter) : "").toLowerCase()} values yet — add one on the{' '}
-                <button type="button" onClick={() => navigate(selectedAttributeType?.is_enumerated ? '/dashboard/attribute-vocabulary' : '/dashboard/wine-attributes')}
+                <button type="button" onClick={() => navigate(selectedAttributeType?.is_enumerated ? '/dashboard/attribute-types' : '/dashboard/product-attributes')}
                   className="text-violet-600 hover:underline">
-                  {selectedAttributeType?.is_enumerated ? 'Attribute Vocabulary' : 'Wine Attributes'}
+                  {selectedAttributeType?.is_enumerated ? 'Attribute Types & Values' : 'Product Attributes'}
                 </button> page.
               </p>
             ) : (

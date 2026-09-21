@@ -27,7 +27,7 @@ const PER_PAGE = 12;
 // type... not tied to any one product. `attribute_type` is any lowercase identifier now, not a
 // fixed enum, so the type field merges what's already in use with the starter suggestions and
 // still accepts free text — a spirit needs `age_statement`, a wine needs `grape_blend`.
-const WineAttributes = () => {
+const ProductAttributes = () => {
   const dispatch = useDispatch();
   const { attributes, types, inUseTypes, suggestedTypes, loading, mutationLoading, error, successMessage } = useSelector((s) => s.wineAttributes);
 
@@ -102,11 +102,11 @@ const WineAttributes = () => {
   return (
     <div className="space-y-2">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Wine Attributes</h1>
+        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Product Attributes</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Every attribute on every product — bottle size, allergens, cask type and more. A value
-          repeats down the list because each row belongs to a different wine; to rename one
-          everywhere at once, use Attribute Vocabulary. For tasting scores, see Wine Characteristics.
+          What each product says — bottle size, allergens, cask type and more. A value repeats down
+          the list because every row belongs to a different wine. To rename one everywhere at once,
+          use Attribute Types &amp; Values. For tasting scores, see Wine Characteristics.
         </p>
       </div>
 
@@ -220,4 +220,4 @@ const WineAttributes = () => {
   );
 };
 
-export default WineAttributes;
+export default ProductAttributes;

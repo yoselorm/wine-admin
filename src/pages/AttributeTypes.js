@@ -27,7 +27,7 @@ const emptyType = { key: '', label: '', hint: '', applies_to: 'shared', is_enume
 // renaming "75CL" to "75 CL" corrects 142 products in a single write. Nothing else on the panel can
 // do that, and before this screen there was no way to do it at all — the vocabulary lived in a
 // config file on the server and changing it meant a deploy.
-const AttributeVocabulary = () => {
+const AttributeTypes = () => {
   const dispatch = useDispatch();
   const { types, typeDetail, typeDetailLoading, mutationLoading, error, successMessage } = useSelector((s) => s.wineAttributes);
 
@@ -104,10 +104,11 @@ const AttributeVocabulary = () => {
   return (
     <div className="space-y-2">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Attribute Vocabulary</h1>
+        <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Attribute Types &amp; Values</h1>
         <p className="text-sm text-gray-500 mt-1">
-          The types a product attribute can have, and the shared values behind the ones that offer a
-          list. Renaming a shared value changes every product carrying it.
+          The kinds of attribute a product can have, and the shared values behind the ones that offer
+          a list. Renaming a value here changes every product carrying it — to change a single
+          product, use Product Attributes.
         </p>
       </div>
 
@@ -342,4 +343,4 @@ const AttributeVocabulary = () => {
   );
 };
 
-export default AttributeVocabulary;
+export default AttributeTypes;
