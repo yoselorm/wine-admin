@@ -46,6 +46,22 @@ export const fetchAttributeTypes = createAsyncThunk(
 // they are worth a screen is the rename below: a shared value is carried by every product that uses
 // it, so correcting one spelling corrects all of them at once.
 
+// The list endpoint leaves products_count off each value — it would mean a count per value of every
+// type on a screen that only ever shows one type's values at a time. This is the per-type read that
+// carries them, and the rename confirmation is built on those numbers, so the detail panel waits for
+// this rather than rendering the list's copy with the counts missing.
+export const fetchAttributeType = createAsyncThunk(
+  'wineAttributes/fetchType',
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`${api_url}/v1/admin/attribute-types/${id}`);
+      return response.data?.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to load attribute type.');
+    }
+  }
+);
+
 export const createAttributeType = createAsyncThunk(
   'wineAttributes/createType',
   async (data, { rejectWithValue }) => {
@@ -171,6 +187,8 @@ const initialState = {
   attributes: [],
   pagination: null,
   types: [],
+  typeDetail: null,
+  typeDetailLoading: false,
   inUseTypes: [],
   suggestedTypes: { shared: [], wine: [], spirit: [], beer: [], non_alcoholic: [] },
   loading: false,
@@ -240,6 +258,17 @@ const wineAttributeSlice = createSlice({
         state.error = action.payload;
       })
 
+      // --- One type in full, with the per-value counts ---
+      .addCase(fetchAttributeType.pending, (state) => { state.typeDetailLoading = true; })
+      .addCase(fetchAttributeType.fulfilled, (state, action) => {
+        state.typeDetailLoading = false;
+        state.typeDetail = action.payload || null;
+      })
+      .addCase(fetchAttributeType.rejected, (state, action) => {
+        state.typeDetailLoading = false;
+        state.error = action.payload;
+      })
+
       // --- Vocabulary (types and their shared values) ---
       //
       // None of these merge into local state: every one of them can change rows the list is already
@@ -248,6 +277,7 @@ const wineAttributeSlice = createSlice({
       .addCase(deleteAttributeType.fulfilled, (state, action) => {
         state.mutationLoading = false;
         state.types = state.types.filter((t) => t.id !== action.payload.id);
+        if (state.typeDetail?.id === action.payload.id) state.typeDetail = null;
         state.successMessage = action.payload.message || 'Attribute type removed.';
       })
       // A 204 carries no body, so there is no server message to pass on here.

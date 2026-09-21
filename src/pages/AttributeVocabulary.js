@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   fetchAttributeTypes,
+  fetchAttributeType,
   createAttributeType,
   updateAttributeType,
   deleteAttributeType,
@@ -28,7 +29,7 @@ const emptyType = { key: '', label: '', hint: '', applies_to: 'shared', is_enume
 // config file on the server and changing it meant a deploy.
 const AttributeVocabulary = () => {
   const dispatch = useDispatch();
-  const { types, mutationLoading, error, successMessage } = useSelector((s) => s.wineAttributes);
+  const { types, typeDetail, typeDetailLoading, mutationLoading, error, successMessage } = useSelector((s) => s.wineAttributes);
 
   const [selectedId, setSelectedId] = useState(null);
   const [search, setSearch] = useState('');
@@ -43,6 +44,11 @@ const AttributeVocabulary = () => {
     dispatch(fetchAttributeTypes());
   }, [dispatch]);
 
+  // The list has no per-value counts, so selecting a type reads it in full.
+  useEffect(() => {
+    if (selectedId) dispatch(fetchAttributeType(selectedId));
+  }, [selectedId, dispatch]);
+
   useEffect(() => {
     if (error) { toast.error(error); dispatch(clearWineAttributeStatus()); }
     if (successMessage) {
@@ -50,15 +56,19 @@ const AttributeVocabulary = () => {
       dispatch(clearWineAttributeStatus());
       // A rename moves every product on that value, so nothing here is reconciled locally.
       dispatch(fetchAttributeTypes());
+      if (selectedId) dispatch(fetchAttributeType(selectedId));
     }
-  }, [error, successMessage, dispatch]);
+  }, [error, successMessage, selectedId, dispatch]);
 
   const filtered = (types || []).filter((t) => {
     const q = search.toLowerCase();
     return !q || t.key.toLowerCase().includes(q) || (t.label || '').toLowerCase().includes(q);
   });
 
-  const selected = (types || []).find((t) => t.id === selectedId);
+  // Deliberately not the list's copy: its values carry no products_count, and the rename
+  // confirmation is built on that number. Showing the list row here would have the dialog say
+  // nothing carries a value while it is on 142 products.
+  const selected = typeDetail?.id === selectedId ? typeDetail : null;
 
   const handleCreateType = () => {
     if (!KEY_PATTERN.test(newType.key) || !newType.label.trim()) return;
@@ -189,7 +199,9 @@ const AttributeVocabulary = () => {
         <div className="bg-white border border-gray-200 rounded-xl shadow-card max-h-[calc(100vh-220px)] overflow-y-auto">
           {!selected ? (
             <div className="flex items-center justify-center h-full py-20 text-sm text-gray-400">
-              Select a type to view its values.
+              {selectedId && typeDetailLoading
+                ? <Loader2 size={18} className="animate-spin text-gray-300" />
+                : 'Select a type to view its values.'}
             </div>
           ) : (
             <div className="p-6">
