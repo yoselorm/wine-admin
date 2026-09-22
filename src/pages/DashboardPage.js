@@ -80,18 +80,18 @@ const DashboardPage = () => {
       sub: pending ? `${pending} pending fulfillment` : 'none pending',
     },
     {
-      // analytics/wallet answers for all time — it takes no date range — so this
-      // tile says so rather than implying a window it never asked for.
       label: 'Wallet top-ups', icon: Wallet,
       value: cedis(topUps.total_credited),
-      pct: null,
-      sub: `${topUps.total_topups || 0} top-up${topUps.total_topups === 1 ? '' : 's'}, all time`,
+      pct: change(topUps.total_credited, priorTopUps.total_credited),
+      sub: priorTopUps.total_credited ? 'vs. previous 30 days' : 'no top-ups in the previous 30 days',
     },
     {
       label: 'Sommelier', icon: MessageCircle,
       value: String(sommelier?.summary?.total_recommendations ?? 0),
+      // All time: the sommelier tables do not keep timestamps, so there is no
+      // window to scope this to.
       pct: null,
-      sub: 'recommendations made',
+      sub: 'recommendations made, all time',
     },
   ];
 

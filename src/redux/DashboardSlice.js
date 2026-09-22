@@ -31,11 +31,12 @@ export const fetchDashboard = createAsyncThunk(
       const [revenue, priorRevenue, wallet, priorWallet, sommelier, orders, lowStock, alerts] = await Promise.all([
         get('analytics/revenue', { ...current, period: 'daily' }),
         get('analytics/revenue', { ...previous, period: 'daily' }),
-        // No date range: this endpoint does not take one, and passing one would
-        // only make the response look period-scoped when it is not.
-        get('analytics/wallet'),
-        Promise.resolve(null),
-        get('analytics/sommelier', current),
+        get('analytics/wallet', current),
+        get('analytics/wallet', previous),
+        // Not windowed: SommelierConversation and RecommendationLog disable
+        // timestamps, so created_at is never written and a range would match
+        // nothing. All time is the only honest answer until they keep them.
+        get('analytics/sommelier'),
         // include=user, or the row has a user_id and no name to show for it. The
         // resource already carries the customer; it is only loaded when asked for.
         get('orders', { per_page: 5, sort_by: 'created_at', sort_order: 'desc', include: 'user' }),
