@@ -30,6 +30,7 @@ import SommelierTester from './pages/SommelierTester';
 import QuizEditor from './pages/QuizEditor';
 import AttributeTypes from './pages/AttributeTypes';
 import ProductAttributes from './pages/ProductAttributes';
+import Reports from './pages/Reports';
 import WineCharacteristics from './pages/WineCharacteristics';
 import InsightsCatalogue from './pages/InsightsCatalogue';
 import PairingMatrix from './pages/PairingMatrix';
@@ -89,6 +90,7 @@ function App() {
         <Route path="food-pairings" element={<FoodAndPairings/>} />
         <Route path="product-attributes" element={<ProductAttributes/>} />
         <Route path="attribute-types" element={<AttributeTypes/>} />
+        <Route path="reports" element={<Reports/>} />
         {/* The names these screens shipped under. Kept so an open tab or a pasted link still lands. */}
         <Route path="wine-attributes" element={<Navigate to="/dashboard/product-attributes" replace />} />
         <Route path="attribute-vocabulary" element={<Navigate to="/dashboard/attribute-types" replace />} />

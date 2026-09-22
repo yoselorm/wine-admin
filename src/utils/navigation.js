@@ -27,6 +27,7 @@ import {
   Sliders,
   Tags,
   Library,
+  FileBarChart,
 } from 'lucide-react';
 
 export const groupedSidebarLinks = [
@@ -61,6 +62,7 @@ export const groupedSidebarLinks = [
       { name: 'Quiz Coverage', path: '/dashboard/insights/quiz-coverage', icon: Target, permission: 'view-analytics' },
       { name: 'Data Health', path: '/dashboard/insights/data-health', icon: HeartPulse, permission: 'view-analytics' },
       { name: 'Demand', path: '/dashboard/insights/demand', icon: TrendingUp, permission: 'view-analytics' },
+      { name: 'Reports', path: '/dashboard/reports', icon: FileBarChart, permission: 'view-analytics' },
     ],
   },
   {
