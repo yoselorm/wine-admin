@@ -26,6 +26,7 @@ import {
   Bot,
   Sliders,
   Tags,
+  Library,
 } from 'lucide-react';
 
 export const groupedSidebarLinks = [
@@ -45,7 +46,8 @@ export const groupedSidebarLinks = [
       { name: 'Brands', path: '/dashboard/brands', icon: Factory, permission: 'manage-brands' },
       { name: 'Food & Pairings', path: '/dashboard/food-pairings', icon: Utensils, permission: 'manage-food-dishes' },
       { name: 'Wine Characteristics', path: '/dashboard/wine-characteristics', icon: Sliders, permission: 'manage-products' },
-      { name: 'Wine Attributes', path: '/dashboard/wine-attributes', icon: Tags, permission: 'manage-products' },
+      { name: 'Product Attributes', path: '/dashboard/product-attributes', icon: Tags, permission: 'manage-products' },
+      { name: 'Attribute Types & Values', path: '/dashboard/attribute-types', icon: Library, permission: 'manage-wine-attributes' },
       { name: 'Quiz Editor', path: '/dashboard/quiz-editor', icon: HelpCircle, permission: 'manage-products' },
     ],
   },

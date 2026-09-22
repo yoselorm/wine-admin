@@ -2,9 +2,24 @@ import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../services/Api';
 import { api_url } from '../utils/config';
 
-// Mirrors WineAttributeSlice.js — same CRUD shape, sibling resource. Unlike the fixed 8-axis
-// constant this used to be, an admin can define new axis types here; the product form's
-// Characteristics picker reads from this list instead of a hardcoded one.
+// Mirrors WineAttributeSlice.js — same CRUD shape, sibling resource.
+//
+// One difference that matters: the tasting axes are a closed set of eight, unlike attribute types.
+// They are not free text, and an unknown axis is a 422 naming the ones that exist. `fetchTastingAxes`
+// reads that set from the server, with how much of the catalogue each one covers — an axis scored on
+// a handful of wines is the reason a customer asking for that style is shown almost nothing.
+
+export const fetchTastingAxes = createAsyncThunk(
+  'wineCharacteristics/fetchAxes',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`${api_url}/v1/admin/wine-axes`);
+      return response.data?.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch tasting axes.');
+    }
+  }
+);
 
 // 1. Fetch Wine Characteristics (Handles: page, per_page, sort_by, sort_order, search)
 export const fetchWineCharacteristics = createAsyncThunk(
@@ -67,6 +82,8 @@ export const deleteWineCharacteristic = createAsyncThunk(
 );
 
 const initialState = {
+  axes: [],
+  totalProducts: 0,
   characteristics: [],
   pagination: null,
   loading: false,
@@ -86,6 +103,10 @@ const wineCharacteristicSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase(fetchTastingAxes.fulfilled, (state, action) => {
+        state.axes = action.payload?.axes || [];
+        state.totalProducts = action.payload?.total_products || 0;
+      })
       .addCase(fetchWineCharacteristics.pending, (state) => {
         state.loading = true;
         state.error = null;
