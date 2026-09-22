@@ -210,6 +210,43 @@ const Reports = () => {
           )}
         </Card>
 
+        {/* Delivery */}
+        <Card title="Delivery">
+          {(() => {
+            const d = revenue?.delivery;
+            if (!d || (d.orders_delivered === 0 && d.orders_collected === 0)) {
+              return <Empty>No orders in this period.</Empty>;
+            }
+            return (
+              <>
+                <Row label="Delivered" value={d.orders_delivered} strong />
+                <Row label="Collected in person" value={d.orders_collected} muted />
+                <Row label="Charged for delivery" value={cedis(d.charged)} />
+                <Row label="Average per delivery" value={cedis(d.avg_charged_per_delivery)} muted />
+
+                {d.margin === null ? (
+                  <p className="text-xs text-gray-500 bg-gray-50 border border-gray-100 rounded-md px-3 py-2 mt-4">
+                    What these deliveries cost is not recorded, so there is no margin to show. Set a
+                    cost on each shipping rate and it will appear here for orders placed afterwards.
+                  </p>
+                ) : (
+                  <>
+                    <Row label="Cost to fulfil" value={`− ${cedis(d.cost)}`} muted />
+                    <Row label="Delivery margin" value={`${cedis(d.margin)} · ${pct(d.margin_pct)}`} strong />
+                    {d.cost_coverage_pct < 100 && (
+                      <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-md px-3 py-2 mt-4">
+                        Based on {d.orders_with_known_cost} of {d.orders_delivered} deliveries
+                        ({pct(d.cost_coverage_pct)}) — the rest have no cost recorded, so the real
+                        margin is lower than this.
+                      </p>
+                    )}
+                  </>
+                )}
+              </>
+            );
+          })()}
+        </Card>
+
         {/* Customers */}
         <Card title="Customers">
           <Row label="Buyers" value={customers?.summary?.total_buyers ?? 0} strong />
@@ -231,7 +268,13 @@ const Reports = () => {
             <Empty>No deliveries in this period.</Empty>
           ) : (
             (locations.by_zone || locations.zones).slice(0, 6).map((z) => (
-              <Row key={z.zone || z.name} label={z.zone || z.name} value={`${z.orders ?? z.count ?? 0} · ${cedis(z.revenue)}`} />
+              <Row
+                key={z.zone || z.name}
+                label={z.zone || z.name}
+                // The delivery each zone paid for, not the whole order value —
+                // that is what says whether a zone covers its own deliveries.
+                value={`${z.orders ?? z.count ?? 0} · ${cedis(z.delivery_charged)} delivery`}
+              />
             ))
           )}
         </Card>
