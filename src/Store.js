@@ -27,6 +27,7 @@ import suburbReducer from './redux/SuburbSlice';
 import sommelierReducer from './redux/SommelierSlice';
 import quizAdminReducer from './redux/QuizAdminSlice';
 import insightsReducer from './redux/InsightsSlice';
+import dashboardReducer from './redux/DashboardSlice';
 
 const store = configureStore({
   reducer: {
@@ -38,6 +39,7 @@ const store = configureStore({
     products: productReducer,
     inventory: inventoryReducer,
     wineAttributes: wineAttributeReducer,
+    dashboard: dashboardReducer,
     wineCharacteristics: wineCharacteristicReducer,
     wineRegions: wineRegionReducer,
     orders: orderReducer,

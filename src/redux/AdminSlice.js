@@ -33,7 +33,7 @@ export const inviteAdmin = createAsyncThunk(
   'admins/invite',
   async (inviteData, { rejectWithValue }) => {
     try {
-      const response = await api.post(`${api_url}/v1/admin/admins/invite`, inviteData);
+      const response = await api.post(`${api_url}/v1/admin/invites`, inviteData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to send invite.');
