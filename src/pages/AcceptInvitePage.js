@@ -1,21 +1,29 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Wine } from 'lucide-react';
-import { acceptInvite, clearStatus } from '../redux/AuthSlice';
+import { Wine, Loader2, AlertCircle } from 'lucide-react';
+import { acceptInvite, fetchInvite, clearStatus } from '../redux/AuthSlice';
 import InputField from '../components/InputField';
 import toast from '../components/Toast';
 
 const AcceptInvitePage = () => {
   const [searchParams] = useSearchParams();
-  const email = searchParams.get('email') || '';
   const token = searchParams.get('token') || '';
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { loading } = useSelector((state) => state.auth);
+  const { loading, invite, inviteLoading, inviteError } = useSelector((state) => state.auth);
 
   const [formData, setFormData] = useState({ password: '', password_confirmation: '' });
+
+  // The invitation carries the email, so the link no longer has to — and a dead one is caught here
+  // rather than after a password has been chosen.
+  useEffect(() => {
+    if (token) dispatch(fetchInvite(token));
+  }, [token, dispatch]);
+
+  const email = invite?.email || searchParams.get('email') || '';
+  const roles = invite?.roles || [];
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -23,8 +31,8 @@ const AcceptInvitePage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !token) {
-      toast.error('This invite link is missing required information.');
+    if (!token) {
+      toast.error('This invite link is missing its token.');
       return;
     }
     if (formData.password !== formData.password_confirmation) {
@@ -33,7 +41,7 @@ const AcceptInvitePage = () => {
     }
     try {
       dispatch(clearStatus());
-      await dispatch(acceptInvite({ email, token, ...formData })).unwrap();
+      await dispatch(acceptInvite({ token, ...formData })).unwrap();
       toast.success('Welcome to Wine2U! Your account is ready.');
       navigate('/dashboard');
     } catch (err) {
@@ -53,10 +61,39 @@ const AcceptInvitePage = () => {
               Set your password
             </h1>
             <p className="text-sm text-gray-500 mt-1">
-              {email ? <>Finish setting up <span className="font-medium text-gray-700">{email}</span> to join the admin panel.</> : 'Finish setting up your account to join the admin panel.'}
+              {email
+                ? <>Finish setting up <span className="font-medium text-gray-700">{email}</span> to join the admin panel.</>
+                : 'Finish setting up your account to join the admin panel.'}
             </p>
+            {roles.length > 0 && (
+              <p className="text-sm text-gray-500 mt-2">
+                You have been invited as{' '}
+                <span className="font-medium text-gray-700">
+                  {roles.map((r) => r.replace(/_/g, ' ')).join(', ')}
+                </span>.
+              </p>
+            )}
           </div>
 
+          {inviteLoading && (
+            <p className="flex items-center gap-2 text-sm text-gray-400 mb-4">
+              <Loader2 size={14} className="animate-spin" /> Checking this invitation…
+            </p>
+          )}
+
+          {inviteError && (
+            <div className="flex items-start gap-2.5 p-3 mb-5 rounded-md bg-red-50 border border-red-100">
+              <AlertCircle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-red-700">{inviteError}</p>
+                <p className="text-xs text-red-500 mt-0.5">
+                  Invitations expire. Ask whoever invited you to send another.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {!inviteError && (
           <form onSubmit={handleSubmit} className="space-y-1">
             <InputField
               label="Password"
@@ -90,6 +127,7 @@ const AcceptInvitePage = () => {
               )}
             </button>
           </form>
+          )}
         </div>
       </div>
 

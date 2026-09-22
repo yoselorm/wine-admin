@@ -104,6 +104,25 @@ export const logoutAdmin = createAsyncThunk(
 );
 
 // 7b. Accept Admin Invite (public, no auth) — note this sits at /api/admin/... not /api/v1/admin/...
+// Reads the invitation behind a link before anything is typed into the form.
+//
+// The page used to take the invitee's email from the query string and find out whether the link was
+// still good only on submit — after they had chosen a password. This says up front who was invited
+// and as what, and fails an expired or revoked link before the form is offered at all.
+//
+// Public on purpose: the recipient has no account yet. The token is the credential.
+export const fetchInvite = createAsyncThunk(
+  'auth/fetchInvite',
+  async (token, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`${api_url}/admin/invites/${token}`);
+      return response.data?.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'This invitation link is not valid.');
+    }
+  }
+);
+
 export const acceptInvite = createAsyncThunk(
   'auth/acceptInvite',
   async (inviteData, { rejectWithValue }) => {
@@ -181,6 +200,9 @@ const authSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase(fetchInvite.pending, (state) => { state.inviteLoading = true; state.inviteError = null; })
+      .addCase(fetchInvite.fulfilled, (state, action) => { state.inviteLoading = false; state.invite = action.payload || null; })
+      .addCase(fetchInvite.rejected, (state, action) => { state.inviteLoading = false; state.inviteError = action.payload; })
       .addCase(loginAdmin.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(loginAdmin.fulfilled, (state, action) => {
         state.loading = false;
