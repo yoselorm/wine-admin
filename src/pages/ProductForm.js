@@ -263,7 +263,12 @@ const ProductForm = () => {
         blog_ids: extractIds(currentProduct.blog_ids, currentProduct.blogs || currentProduct.posts),
         variants: currentProduct.variants || [],
         characteristics: currentProduct.characteristics || [],
-        wine_attributes: currentProduct.wine_attributes || [],
+        // The API takes `wine_attributes` but gives them back as `attributes`.
+        // Reading the request name here loaded an empty list on every edit, and
+        // submit sends the whole form — so saving any change to a product wiped
+        // every attribute it had.
+        wine_attributes: (currentProduct.attributes || currentProduct.wine_attributes || [])
+          .map(({ attribute_type, value }) => ({ attribute_type, value })),
         pairings: currentProduct.pairings || [],
         images: (currentProduct.images || []).map((img) => ({ ...img, is_upload: false, file: null })),
       });
