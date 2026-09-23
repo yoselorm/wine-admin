@@ -198,6 +198,23 @@ const ProductForm = () => {
   }, [attributeTypeFilter, debouncedAttributeSearch]);
 
   const selectedWineAttributes = formData.wine_attributes || [];
+  const [newAttributeValue, setNewAttributeValue] = useState('');
+
+  // Typing a value the catalogue has not seen before. The picker below only ever
+  // listed values that already existed, which made a colour note impossible to
+  // enter: it is prose about one wine, so the only one worth setting is the one
+  // nobody has typed yet. The server settles near-duplicates ("75 CL" against an
+  // existing "75CL"), so a free-typed value is safe to send as it is.
+  const addWineAttribute = (attribute_type, raw) => {
+    const value = (raw || '').trim();
+    if (!attribute_type || !value) return;
+    setFormData((prev) => (
+      prev.wine_attributes.some((a) => a.attribute_type === attribute_type && a.value === value)
+        ? prev
+        : { ...prev, wine_attributes: [...prev.wine_attributes, { attribute_type, value }] }
+    ));
+    setNewAttributeValue('');
+  };
 
   const toggleWineAttribute = (attribute_type, value) => {
     setFormData((prev) => {
@@ -941,8 +958,8 @@ const ProductForm = () => {
         <Card title="Attributes">
           <p className="text-xs text-gray-400 mb-3">
             Bottle size, allergens, colour note and more — plus whatever fits this product's
-            beverage class. Pick a type, then choose from that type's known values — new values
-            are added on the{' '}
+            beverage class. Pick a type, then choose one of its known values or type a new one.
+            Shared vocabularies are managed on the{' '}
             <button type="button" onClick={() => navigate('/dashboard/attribute-types')} className="text-violet-600 hover:underline">
               Attribute Types &amp; Values
             </button> page.
@@ -993,11 +1010,7 @@ const ProductForm = () => {
           <div className="flex flex-wrap gap-2 min-h-[34px]">
             {attributeValueOptions.length === 0 ? (
               <p className="text-xs text-gray-400 italic py-1">
-                No {(attributeTypeFilter ? humanizeType(attributeTypeFilter) : "").toLowerCase()} values yet — add one on the{' '}
-                <button type="button" onClick={() => navigate(selectedAttributeType?.is_enumerated ? '/dashboard/attribute-types' : '/dashboard/product-attributes')}
-                  className="text-violet-600 hover:underline">
-                  {selectedAttributeType?.is_enumerated ? 'Attribute Types & Values' : 'Product Attributes'}
-                </button> page.
+                No {(attributeTypeFilter ? humanizeType(attributeTypeFilter) : "").toLowerCase()} values yet — type the first one below.
               </p>
             ) : (
               attributeValueOptions.map((o) => (
@@ -1008,6 +1021,31 @@ const ProductForm = () => {
               ))
             )}
           </div>
+
+          {attributeTypeFilter && (
+            <div className="flex items-center gap-2 mt-2.5">
+              <input
+                type="text"
+                maxLength={500}
+                value={newAttributeValue}
+                onChange={(e) => setNewAttributeValue(e.target.value)}
+                // Enter inside a form submits it, which here would save the product.
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addWineAttribute(attributeTypeFilter, newAttributeValue);
+                  }
+                }}
+                placeholder={`Add a ${humanizeType(attributeTypeFilter).toLowerCase()}...`}
+                className="flex-1 px-3 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:border-violet-500"
+              />
+              <button type="button" disabled={!newAttributeValue.trim()}
+                onClick={() => addWineAttribute(attributeTypeFilter, newAttributeValue)}
+                className="px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-md hover:bg-gray-50 disabled:opacity-40">
+                Add
+              </button>
+            </div>
+          )}
           {!selectedAttributeType?.is_enumerated && attributePagination && attributePagination.last_page > 1 && (
             <div className="mt-2.5">
               <Pagination meta={attributePagination} onPageChange={setAttributePage} compact />
