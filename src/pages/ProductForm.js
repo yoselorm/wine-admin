@@ -15,11 +15,11 @@ import {
   clearDraftError,
   clearPreview,
 } from "../redux/ProductSlice";
-import { fetchBrands, fetchAllBrands } from "../redux/BrandSlice";
+import { fetchAllBrands } from "../redux/BrandSlice";
 import { fetchCategories, fetchCategoryTypes } from "../redux/CategorySlice";
 import { fetchWineRegions } from "../redux/WineRegionSlice";
 import { fetchBlogs } from "../redux/BlogSlice";
-import { fetchFoodDishes } from "../redux/FoodDishSlice";
+import { fetchAllFoodDishes } from "../redux/FoodDishSlice";
 import { fetchWineAttributes, fetchAttributeTypes } from "../redux/WineAttributeSlice";
 import { fetchWineCharacteristics } from "../redux/WineCharacteristicSlice";
 import { TASTING_AXES } from "../utils/tastingAxes";
@@ -121,7 +121,10 @@ const ProductForm = () => {
   const { categories, categoryTypes, suggestedTypes: suggestedCategoryTypes, pagination: categoryPagination } = useSelector((state) => state.categories || { items: [] });
   const { regions, pagination: regionPagination } = useSelector((state) => state.wineRegions || { items: [] });
   const { posts: blogs } = useSelector((state) => state.blogs || { items: [] });
-  const { foodDishes: dishes } = useSelector((state) => state.foodDishes || { items: [] });
+  const { foodDishes: dishes, allFoodDishes } = useSelector((state) => state.foodDishes || { items: [] });
+  // allFoodDishes is the complete set; `dishes` is whatever page happened to load, kept as a
+  // fallback so the picker is never empty while the full list is still arriving.
+  const dishList = allFoodDishes?.length ? allFoodDishes : (dishes || []);
   const { attributes: wineAttributesPage, types: attributeTypes, inUseTypes, suggestedTypes: suggestedAttributeTypes, pagination: attributePagination } = useSelector((state) => state.wineAttributes || { attributes: [] });
   const { characteristics: allWineCharacteristics } = useSelector((state) => state.wineCharacteristics || { characteristics: [] });
 
@@ -166,7 +169,8 @@ const ProductForm = () => {
     // cannot be assigned to a product at all.
     dispatch(fetchAllBrands());
     dispatch(fetchBlogs());
-    dispatch(fetchFoodDishes());
+    // The whole list: this feeds a picker, and a dish missing from it cannot be paired at all.
+    dispatch(fetchAllFoodDishes());
     dispatch(fetchCategoryTypes());
     dispatch(fetchAttributeTypes());
     // Reference data for the "choose instead of type" characteristics picker — see WineCharacteristics.js.
@@ -259,7 +263,12 @@ const ProductForm = () => {
         blog_ids: extractIds(currentProduct.blog_ids, currentProduct.blogs || currentProduct.posts),
         variants: currentProduct.variants || [],
         characteristics: currentProduct.characteristics || [],
-        wine_attributes: currentProduct.wine_attributes || [],
+        // The API takes `wine_attributes` but gives them back as `attributes`.
+        // Reading the request name here loaded an empty list on every edit, and
+        // submit sends the whole form — so saving any change to a product wiped
+        // every attribute it had.
+        wine_attributes: (currentProduct.attributes || currentProduct.wine_attributes || [])
+          .map(({ attribute_type, value }) => ({ attribute_type, value })),
         pairings: currentProduct.pairings || [],
         images: (currentProduct.images || []).map((img) => ({ ...img, is_upload: false, file: null })),
       });
@@ -278,7 +287,7 @@ const ProductForm = () => {
           return next;
         });
       }
-      if (!dishes.find((d) => d.id === pairingDraft.dish_id)) {
+      if (!dishList.find((d) => d.id === pairingDraft.dish_id)) {
         setPairingDraft((p) => ({ ...p, dish_id: dishes[0]?.id || "", pairing_type: dishes[0]?.is_local ? "local" : "international" }));
       }
     }
@@ -286,7 +295,7 @@ const ProductForm = () => {
   }, [currentProduct, isEditing]);
 
   useEffect(() => {
-    if (!pairingDraft.dish_id && dishes?.length) {
+    if (!pairingDraft.dish_id && dishList.length) {
       setPairingDraft((p) => ({ ...p, dish_id: dishes[0].id, pairing_type: dishes[0].is_local ? "local" : "international" }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1008,14 +1017,19 @@ const ProductForm = () => {
 
         <Card title="Food Pairings">
           <div className="flex items-center gap-2">
-            <select value={pairingDraft.dish_id}
-              onChange={(e) => {
-                const dish = dishes?.find((d) => d.id === e.target.value);
-                setPairingDraft((d) => ({ ...d, dish_id: e.target.value, pairing_type: dish?.is_local ? "local" : "international" }));
+            <SearchableSelect
+              value={pairingDraft.dish_id}
+              onChange={(id) => {
+                const dish = dishList.find((d) => d.id === id);
+                // A local dish defaults to a local pairing, which is right far more often than not.
+                setPairingDraft((d) => ({ ...d, dish_id: id, pairing_type: dish?.is_local ? "local" : "international" }));
               }}
-              className="px-3 py-2 border border-gray-200 rounded-md bg-white text-sm focus:outline-none focus:border-violet-500 min-w-[160px]">
-              {dishes?.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-            </select>
+              options={dishList.map((d) => ({ value: d.id, label: d.name }))}
+              placeholder="Choose a dish..."
+              searchPlaceholder="Search dishes..."
+              emptyText="No dish matches."
+              className="min-w-[220px]"
+            />
             <select value={pairingDraft.pairing_type} onChange={(e) => setPairingDraft((d) => ({ ...d, pairing_type: e.target.value }))}
               className="px-3 py-2 border border-gray-200 rounded-md bg-white text-sm focus:outline-none focus:border-violet-500">
               <option value="international">International</option>

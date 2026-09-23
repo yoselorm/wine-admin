@@ -13,6 +13,33 @@ const prepareFormData = (data) => {
 };
 
 // 1. Fetch Food Dishes List (Handles params: page, per_page, sort_by, sort_order, search)
+// Every dish, for the pairing picker, which needs all of them at once.
+//
+// fetchFoodDishes is paginated and the product form called it with no page size, so the picker
+// offered fifteen of seventy-nine dishes — a wine could not be paired with the other sixty-four at
+// all, and nothing about the list said so.
+export const fetchAllFoodDishes = createAsyncThunk(
+  'foodDishes/fetchAllForPicker',
+  async (_, { rejectWithValue }) => {
+    try {
+      const all = [];
+      let page = 1;
+      let lastPage = 1;
+
+      do {
+        const { data } = await api.get(`${api_url}/v1/admin/food-dishes`, { params: { page, per_page: 100 } });
+        all.push(...(data?.data || []));
+        lastPage = data?.meta?.last_page ?? 1;
+        page += 1;
+      } while (page <= lastPage && page < 25);
+
+      return all;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to load dishes.');
+    }
+  }
+);
+
 export const fetchFoodDishes = createAsyncThunk(
   'foodDishes/fetchAll',
   async (params, { rejectWithValue }) => {
@@ -99,6 +126,7 @@ export const deleteFoodDish = createAsyncThunk(
 );
 
 const initialState = {
+  allFoodDishes: [],
   foodDishes: [],
   pagination: null,
   loading: false,
@@ -118,6 +146,7 @@ const foodDishSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase(fetchAllFoodDishes.fulfilled, (state, action) => { state.allFoodDishes = action.payload || []; })
       // --- Fetch List ---
       .addCase(fetchFoodDishes.pending, (state) => {
         state.loading = true;
