@@ -12,6 +12,36 @@ const prepareFormData = (data) => {
   return formData;
 };
 
+// Every brand, for pickers that must offer all of them.
+//
+// fetchBrands is paginated, and the product form called it with no page size — so it listed the
+// first fifteen of nineteen brands and four could not be chosen at all. A picker showing most of
+// the options is worse than one showing none, because nothing about it looks wrong.
+//
+// Pages through rather than sending one large per_page, so the answer stays complete as the
+// catalogue grows past whatever number looked generous today.
+export const fetchAllBrands = createAsyncThunk(
+  'brands/fetchAll',
+  async (_, { rejectWithValue }) => {
+    try {
+      const all = [];
+      let page = 1;
+      let lastPage = 1;
+
+      do {
+        const { data } = await api.get(`${api_url}/v1/admin/brands`, { params: { page, per_page: 100 } });
+        all.push(...(data?.data || []));
+        lastPage = data?.meta?.last_page ?? 1;
+        page += 1;
+      } while (page <= lastPage && page < 25);
+
+      return all;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to load brands.');
+    }
+  }
+);
+
 export const fetchBrands = createAsyncThunk(
   'brands/fetchBrands',
   async (params = {}, { rejectWithValue }) => {
@@ -135,6 +165,8 @@ const brandSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase(fetchAllBrands.fulfilled, (state, action) => { state.allBrands = action.payload || []; })
+
       .addCase(fetchBrands.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(fetchBrands.fulfilled, (state, action) => {
         state.loading = false;
@@ -154,6 +186,12 @@ const brandSlice = createSlice({
       .addCase(createBrand.fulfilled, (state, action) => {
         state.mutationLoading = false;
         state.brands.unshift(action.payload);
+        // Also into the full list the pickers read, so a brand created while a
+        // product form is open can be chosen without reloading the page.
+        if (action.payload?.id && !state.allBrands.some((b) => b.id === action.payload.id)) {
+          state.allBrands = [...state.allBrands, action.payload]
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        }
         state.message = "Brand created successfully";
       })
       .addCase(createBrand.rejected, (state, action) => { state.mutationLoading = false; state.error = action.payload; })
@@ -162,6 +200,7 @@ const brandSlice = createSlice({
       .addCase(updateBrand.fulfilled, (state, action) => {
         state.mutationLoading = false;
         state.brands = state.brands.map((b) => b.id === action.payload.id ? action.payload : b);
+        state.allBrands = state.allBrands.map((b) => b.id === action.payload.id ? { ...b, ...action.payload } : b);
         if (state.currentBrand?.id === action.payload.id) state.currentBrand = action.payload;
         state.message = "Brand updated successfully";
       })
@@ -171,6 +210,7 @@ const brandSlice = createSlice({
       .addCase(deleteBrand.fulfilled, (state, action) => {
         state.mutationLoading = false;
         state.brands = state.brands.filter((b) => b.id !== action.payload);
+        state.allBrands = state.allBrands.filter((b) => b.id !== action.payload);
         state.message = "Brand deleted successfully";
       })
       .addCase(deleteBrand.rejected, (state, action) => { state.mutationLoading = false; state.error = action.payload; });
