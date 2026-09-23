@@ -20,7 +20,7 @@ import ConfirmDeleteModal from '../components/ConfirmDeleteModal';
 import Button from '../components/ui/Button';
 
 const emptyDetail = { name: '', description: '' };
-const emptyRate = { min_weight: '0.0', max_weight: '5.0', price: '10.00' };
+const emptyRate = { min_weight: '0.0', max_weight: '5.0', price: '10.00', cost: '' };
 
 const Shipping = () => {
   const dispatch = useDispatch();
@@ -156,6 +156,9 @@ const Shipping = () => {
       min_weight: parseFloat(rateDraft.min_weight),
       max_weight: parseFloat(rateDraft.max_weight),
       price: parseFloat(rateDraft.price),
+      // Left null when blank rather than sent as zero: a cost nobody has
+      // recorded is unknown, and a zero would report the whole charge as margin.
+      cost: rateDraft.cost === '' ? null : parseFloat(rateDraft.cost),
     }));
   };
 
@@ -308,9 +311,13 @@ const Shipping = () => {
                   <input type="number" step="0.1" min="0" placeholder="Max kg" value={rateDraft.max_weight}
                     onChange={(e) => setRateDraft((r) => ({ ...r, max_weight: e.target.value }))}
                     className="w-24 px-2 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-violet-500" />
-                  <input type="number" step="0.01" min="0" placeholder="Price ₵" value={rateDraft.price}
+                  <input type="number" step="0.01" min="0" placeholder="Charge ₵" value={rateDraft.price}
                     onChange={(e) => setRateDraft((r) => ({ ...r, price: e.target.value }))}
                     className="w-28 px-2 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-violet-500" />
+                  <input type="number" step="0.01" min="0" placeholder="Cost ₵ (optional)" value={rateDraft.cost}
+                    onChange={(e) => setRateDraft((r) => ({ ...r, cost: e.target.value }))}
+                    title="What this delivery costs you. Leave blank if you do not know it — margin is not reported until it is set."
+                    className="w-36 px-2 py-2 border border-gray-200 rounded-md text-sm focus:outline-none focus:border-violet-500" />
                   <Button type="button" size="sm" appearance="secondary" disabled={rateMutationLoading} onClick={handleAddRate}>
                     {rateMutationLoading ? <Loader2 size={13} className="animate-spin" /> : 'Add Rate'}
                   </Button>
@@ -318,13 +325,27 @@ const Shipping = () => {
                 <div className="divide-y divide-gray-100">
                   <div className="flex items-center justify-between py-2 text-[11px] font-bold text-gray-400 uppercase tracking-wider">
                     <span>Weight Band</span>
-                    <span>Price</span>
+                    <span>Charge · Cost · Margin</span>
                   </div>
                   {zoneRates.map((rate) => (
                     <div key={rate.id} className="flex items-center justify-between py-2.5 text-sm">
                       <span className="text-gray-700">{Number(rate.min_weight).toFixed(0)} – {Number(rate.max_weight).toFixed(0)} kg</span>
                       <div className="flex items-center gap-3">
                         <span className="font-semibold text-gray-900">₵{Number(rate.price).toFixed(0)}</span>
+                        {/* Unknown rather than zero: a rate with no recorded cost shows a dash, so
+                            it cannot be read as one that is free to fulfil. */}
+                        {rate.cost === null || rate.cost === undefined ? (
+                          <span className="text-xs text-gray-300" title="No cost recorded — margin cannot be reported for this rate">
+                            cost not set
+                          </span>
+                        ) : (
+                          <>
+                            <span className="text-xs text-gray-400">− ₵{Number(rate.cost).toFixed(0)}</span>
+                            <span className="text-xs font-semibold text-green-700">
+                              ₵{(Number(rate.price) - Number(rate.cost)).toFixed(0)}
+                            </span>
+                          </>
+                        )}
                         <button onClick={() => setRateDeleteTarget(rate)} className="text-gray-300 hover:text-red-500">
                           <Trash2 size={13} />
                         </button>
