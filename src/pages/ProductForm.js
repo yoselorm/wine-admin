@@ -15,7 +15,7 @@ import {
   clearDraftError,
   clearPreview,
 } from "../redux/ProductSlice";
-import { fetchBrands } from "../redux/BrandSlice";
+import { fetchBrands, fetchAllBrands } from "../redux/BrandSlice";
 import { fetchCategories, fetchCategoryTypes } from "../redux/CategorySlice";
 import { fetchWineRegions } from "../redux/WineRegionSlice";
 import { fetchBlogs } from "../redux/BlogSlice";
@@ -34,6 +34,7 @@ import RichTextEditor from "../components/RichTextEditor";
 import Pagination from "../components/Pagination";
 import ImagePreview from "../components/ImagePreview";
 import toast from "../components/Toast";
+import SearchableSelect from "../components/SearchableSelect";
 
 const PICKER_PAGE_SIZE = 10;
 
@@ -116,7 +117,7 @@ const ProductForm = () => {
     currentProduct, loading, mutationLoading, draftLoading, draftError, error, successMessage,
     previewData, previewMessage, previewLoading, previewError,
   } = useSelector((s) => s.products);
-  const { brands } = useSelector((state) => state.brands || { items: [] });
+  const { brands, allBrands } = useSelector((state) => state.brands || { items: [] });
   const { categories, categoryTypes, suggestedTypes: suggestedCategoryTypes, pagination: categoryPagination } = useSelector((state) => state.categories || { items: [] });
   const { regions, pagination: regionPagination } = useSelector((state) => state.wineRegions || { items: [] });
   const { posts: blogs } = useSelector((state) => state.blogs || { items: [] });
@@ -161,7 +162,9 @@ const ProductForm = () => {
   const debouncedAttributeSearch = useDebouncedValue(attributeSearch);
 
   useEffect(() => {
-    dispatch(fetchBrands());
+    // Every brand, not the first page of them: this is a picker, and a brand missing from it
+    // cannot be assigned to a product at all.
+    dispatch(fetchAllBrands());
     dispatch(fetchBlogs());
     dispatch(fetchFoodDishes());
     dispatch(fetchCategoryTypes());
@@ -628,11 +631,16 @@ const ProductForm = () => {
             </div>
             <div>
               <label className="block font-medium text-gray-700 mb-1.5">Brand <span className="text-red-500">*</span></label>
-              <select required name="brand_id" value={formData.brand_id} onChange={handleChange}
-                className="w-full px-3 py-2 border border-gray-200 bg-white rounded-md focus:outline-none focus:border-violet-500">
-                <option value="">Select a brand...</option>
-                {brands?.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
+              <SearchableSelect
+                required
+                name="brand_id"
+                value={formData.brand_id}
+                onChange={(v) => setFormData((p) => ({ ...p, brand_id: v }))}
+                options={(allBrands?.length ? allBrands : brands || []).map((b) => ({ value: b.id, label: b.name }))}
+                placeholder="Select a brand..."
+                searchPlaceholder="Search brands..."
+                emptyText="No brand matches."
+              />
             </div>
             <div>
               <label className="block font-medium text-gray-700 mb-1.5">Vintage</label>
