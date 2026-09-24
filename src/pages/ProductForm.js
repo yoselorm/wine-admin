@@ -1082,7 +1082,12 @@ const ProductForm = () => {
             {formData.pairings?.map((pair, index) => (
               <div key={index} className="flex items-center justify-between px-3 py-2 bg-gray-50 rounded-md text-sm">
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold text-gray-800">{dishes?.find((d) => d.id === pair.dish_id)?.name || pair.dish_id}</span>
+                  {/* dishList, not dishes: `dishes` is one loaded page, so any pairing
+                      whose dish fell outside it rendered as a raw ULID. */}
+                  <span className="font-semibold text-gray-800">
+                    {dishList.find((d) => d.id === pair.dish_id)?.name
+                      || <span className="italic text-gray-400">Dish no longer available</span>}
+                  </span>
                   {pair.pairing_type && (
                     <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${
                       pair.pairing_type === "local" ? "bg-green-50 text-green-700" : "bg-sky-50 text-sky-700"
